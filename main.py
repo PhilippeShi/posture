@@ -5,8 +5,8 @@ from pose_module import detectPose
 def main():
     detector = detectPose()
 
-    cap = cv2.VideoCapture("video_samples/6.mp4")
-    # cap = cv2.VideoCapture(0)
+    # cap = cv2.VideoCapture("video_samples/6.mp4")
+    cap = cv2.VideoCapture(0)
 
     prev_time = time.time()
 
@@ -26,8 +26,12 @@ def main():
             image.flags.writeable = True
             image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 
-            
             prev_time = detector.show_fps(image, prev_time)
+            # same as:
+            # curr_time = detector.show_fps(image, prev_time)
+            # prev_time = curr_time
+            
+
             detector.draw_landmarks(image, results)
 
             # cv2.imshow('MediaPipe Pose', cv2.flip(image, 1))
