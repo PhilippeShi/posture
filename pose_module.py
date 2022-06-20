@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 class detectPose():
-    def __init__(self, min_detection_confidence=0.5, min_tracking_confidence=0.5):
+    def __init__(self, min_detection_confidence=0.5, min_tracking_confidence=0.5, show_video_image=True):
         self.mp_pose = mp.solutions.pose
         self.mp_drawing = mp.solutions.drawing_utils
         self.mp_drawing_styles = mp.solutions.drawing_styles
@@ -15,28 +15,44 @@ class detectPose():
             min_tracking_confidence=min_tracking_confidence)
 
         self.image = None
+        self.blank_image = None
+        self.show_video_image = show_video_image
+
         self.landmarks = None
         self.lmrk_d = dict()
         for id,lm in enumerate((self.mp_pose).PoseLandmark):
             self.lmrk_d[str(lm)[13::]] = id
+
+    def set_images(self, image):
+        self.image = image
+        self.blank_image = np.zeros(image.shape, dtype=np.uint8)
+
+    def images(self):
+        if self.show_video_image:
+            return [self.image, self.blank_image]
+        else:
+            return [self.blank_image]
 
     def draw_all_landmarks(self, results):
         """
         Draws all the self.landmarks on the self.image. The
         method uses mediapipe's built-in utilities
         """
-        self.mp_drawing.draw_landmarks(
-            self.image,
-            results.pose_landmarks,
-            self.mp_pose.POSE_CONNECTIONS,
-            self.mp_drawing_styles.get_default_pose_landmarks_style())
+        for img in self.images():
+            self.mp_drawing.draw_landmarks(
+                img,
+                results.pose_landmarks,
+                self.mp_pose.POSE_CONNECTIONS,
+                self.mp_drawing_styles.get_default_pose_landmarks_style())
 
     def show_fps(self, prev_time):
         curr_time = time.time()
         fps = 1 / (curr_time - prev_time)
         prev_time = curr_time
-        cv2.putText(self.image, (str(int(fps))), (10, 30), 
-            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA, False)
+        for img in self.images():
+            print(type(img))
+            cv2.putText(img, (str(int(fps))), (10, 30), 
+                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA, False)
         
         return prev_time
 
@@ -79,59 +95,64 @@ class detectPose():
             L_E = self.lmrk_d['LEFT_EAR'] #7
             R_E = self.lmrk_d['RIGHT_EAR'] #8
             
-            # draw points on shoulders, hips, ears
-            lst = [L_S,R_S,L_H,R_H,L_E,R_E]
-            for id in lst:
-                lm = self.landmarks[id]
-                cx, cy = int(lm.x*w), int(lm.y*h)
-                cv2.circle(img=self.image, center=(cx,cy), radius=3, color=color, thickness=thickness)
-
-            # draw shoulder to shoulder
-            cv2.line(self.image, 
-                (int(self.landmarks[L_S].x*w), int(self.landmarks[L_S].y*h)), 
-                (int(self.landmarks[R_S].x*w), int(self.landmarks[R_S].y*h)), 
-                color, thickness)
-            # draw left shoulder to left hip
-            cv2.line(self.image, 
-                (int(self.landmarks[L_S].x*w), int(self.landmarks[L_S].y*h)), 
-                (int(self.landmarks[L_H].x*w), int(self.landmarks[L_H].y*h)), 
-                color, thickness)
-            # draw right shoulder to right hip
-            cv2.line(self.image, 
-                (int(self.landmarks[R_H].x*w), int(self.landmarks[R_H].y*h)), 
-                (int(self.landmarks[R_S].x*w), int(self.landmarks[R_S].y*h)), 
-                color, thickness)
-            # draw left hip to right hip
-            cv2.line(self.image, 
-                (int(self.landmarks[L_H].x*w), int(self.landmarks[L_H].y*h)), 
-                (int(self.landmarks[R_H].x*w), int(self.landmarks[R_H].y*h)), 
-                color, thickness)
-            # draw left ear to right ear
-            cv2.line(self.image, 
-                (int(self.landmarks[L_E].x*w), int(self.landmarks[L_E].y*h)), 
-                (int(self.landmarks[R_E].x*w), int(self.landmarks[R_E].y*h)), 
-                color, thickness)
             
-            # if both ears visible, draw neck line between them
-            if self.landmarks[L_E].visibility > 0.95 and self.landmarks[R_E].visibility > 0.95:
-                cv2.line(self.image, 
-                    (int((self.landmarks[R_S].x+self.landmarks[L_S].x)*w/2), int((self.landmarks[R_S].y+self.landmarks[L_S].y)*h/2)), 
-                    (int((self.landmarks[R_E].x+self.landmarks[L_E].x)*w/2), int((self.landmarks[R_E].y+self.landmarks[L_E].y)*h/2)), 
+
+            # draw points on shoulders, hips, ears
+            for image in self.images():
+                lst = [L_S,R_S,L_H,R_H,L_E,R_E]
+                for id in lst:
+                    lm = self.landmarks[id]
+                    cx, cy = int(lm.x*w), int(lm.y*h)
+                    cv2.circle(image, center=(cx,cy), radius=3, color=color, thickness=thickness)
+               
+
+            
+                # draw shoulder to shoulder
+                cv2.line(image, 
+                    (int(self.landmarks[L_S].x*w), int(self.landmarks[L_S].y*h)), 
+                    (int(self.landmarks[R_S].x*w), int(self.landmarks[R_S].y*h)), 
                     color, thickness)
-            # if only left ear visible, draw neck line to left ear
-            elif self.landmarks[L_E].visibility > 0.95:
-                cv2.line(self.image, 
-                    (int((self.landmarks[R_S].x+self.landmarks[L_S].x)*w/2), int((self.landmarks[R_S].y+self.landmarks[L_S].y)*h/2)), 
-                    (int((self.landmarks[L_E].x)*w), int((self.landmarks[L_E].y)*h)), 
+                # draw left shoulder to left hip
+                cv2.line(image, 
+                    (int(self.landmarks[L_S].x*w), int(self.landmarks[L_S].y*h)), 
+                    (int(self.landmarks[L_H].x*w), int(self.landmarks[L_H].y*h)), 
                     color, thickness)
-            # if only right ear visible, draw neck line to right ear
-            elif self.landmarks[R_E].visibility > 0.95:
-                cv2.line(self.image, 
-                    (int((self.landmarks[R_S].x+self.landmarks[L_S].x)*w/2), int((self.landmarks[R_S].y+self.landmarks[L_S].y)*h/2)), 
-                    (int((self.landmarks[R_E].x)*w), int((self.landmarks[R_E].y)*h)), 
+                # draw right shoulder to right hip
+                cv2.line(image, 
+                    (int(self.landmarks[R_H].x*w), int(self.landmarks[R_H].y*h)), 
+                    (int(self.landmarks[R_S].x*w), int(self.landmarks[R_S].y*h)), 
                     color, thickness)
-            else:
-                print("NO EARS DETECTED")
+                # draw left hip to right hip
+                cv2.line(image, 
+                    (int(self.landmarks[L_H].x*w), int(self.landmarks[L_H].y*h)), 
+                    (int(self.landmarks[R_H].x*w), int(self.landmarks[R_H].y*h)), 
+                    color, thickness)
+                # draw left ear to right ear
+                cv2.line(image, 
+                    (int(self.landmarks[L_E].x*w), int(self.landmarks[L_E].y*h)), 
+                    (int(self.landmarks[R_E].x*w), int(self.landmarks[R_E].y*h)), 
+                    color, thickness)
+                
+                # if both ears visible, draw neck line between them
+                if self.landmarks[L_E].visibility > 0.95 and self.landmarks[R_E].visibility > 0.95:
+                    cv2.line(image, 
+                        (int((self.landmarks[R_S].x+self.landmarks[L_S].x)*w/2), int((self.landmarks[R_S].y+self.landmarks[L_S].y)*h/2)), 
+                        (int((self.landmarks[R_E].x+self.landmarks[L_E].x)*w/2), int((self.landmarks[R_E].y+self.landmarks[L_E].y)*h/2)), 
+                        color, thickness)
+                # if only left ear visible, draw neck line to left ear
+                elif self.landmarks[L_E].visibility > 0.95:
+                    cv2.line(image, 
+                        (int((self.landmarks[R_S].x+self.landmarks[L_S].x)*w/2), int((self.landmarks[R_S].y+self.landmarks[L_S].y)*h/2)), 
+                        (int((self.landmarks[L_E].x)*w), int((self.landmarks[L_E].y)*h)), 
+                        color, thickness)
+                # if only right ear visible, draw neck line to right ear
+                elif self.landmarks[R_E].visibility > 0.95:
+                    cv2.line(image, 
+                        (int((self.landmarks[R_S].x+self.landmarks[L_S].x)*w/2), int((self.landmarks[R_S].y+self.landmarks[L_S].y)*h/2)), 
+                        (int((self.landmarks[R_E].x)*w), int((self.landmarks[R_E].y)*h)), 
+                        color, thickness)
+                else:
+                    print("NO EARS DETECTED")
 
             
 
@@ -155,10 +176,17 @@ class detectPose():
         if two_d_angle > 90:
             two_d_angle = 180 - two_d_angle
         color=(0,255,0)
-        cv2.putText(self.image, "3D angle: "+str(three_d_angle), (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h)), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
-        cv2.putText(self.image, "2D angle: "+str(two_d_angle), (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h+20)), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
 
-        
+        for img in self.images():
+            cv2.putText(img, "3D angle: "+str(three_d_angle), (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h)), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+            cv2.putText(img, "2D angle: "+str(two_d_angle), (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h+20)), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+
+    def show(self):
+        count = 1
+        for img in self.images():
+            cv2.imshow("Image "+str(count), img)
+            count+=1
+
     def get_angle_3d(self, a, b, c):
         """
         Helper method that takes 3 lists of 3D coordinates
@@ -194,7 +222,7 @@ class detectPose():
         return round(np.degrees(angle),2)
 
 def main():
-    detector = detectPose()
+    detector = detectPose(show_video_image=True)
 
     # cap = cv2.VideoCapture("video_samples/6.mp4")
     cap = cv2.VideoCapture(0)
@@ -209,7 +237,8 @@ def main():
             # If loading a video, use 'break' instead of 'continue'.
             break
 
-        detector.image = image
+        detector.set_images(image)
+
         (detector.image).flags.writeable = False
         detector.image = cv2.cvtColor(detector.image, cv2.COLOR_BGR2RGB)
         results = detector.pose.process(detector.image)
@@ -221,10 +250,11 @@ def main():
         prev_time = detector.show_fps(prev_time) # Shows FPS before reasssigning prev_time
         
         detector.process_landmarks(results)
-        detector.neck_posture_angle()
-        # cv2.imshow('MediaPipe Pose', cv2.flip(self.image, 1))
-        cv2.imshow('MediaPipe Pose', detector.image)
-        
+        detector.neck_posture_angle()        
+        detector.show()
+        # cv2.imshow("Image 1", detector.image)
+        # cv2.imshow("Image 2", detector.blank_image)
+
         if cv2.waitKey(10) & 0xFF == ord('q'):
             break
 
