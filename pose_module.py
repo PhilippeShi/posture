@@ -136,7 +136,7 @@ class detectPose():
             
 
     # TODO change to find angle between a point in front of person's chest in the center,
-    # point middle point between two shoulders, and middel point between two ears
+    # point middle point between two shoulders, and middle point between two ears
 
     def neck_posture_angle(self, color=(0,0,255)):
         if not self.landmarks:
@@ -150,12 +150,13 @@ class detectPose():
         b = [(self.landmarks[R_S].x+self.landmarks[L_S].x)/2,(self.landmarks[R_S].y+self.landmarks[L_S].y)/2,(self.landmarks[R_S].z+self.landmarks[L_S].z)/2]
         c = [(self.landmarks[R_E].x+self.landmarks[L_E].x)/2,(self.landmarks[R_E].y+self.landmarks[L_E].y)/2,(self.landmarks[R_E].z+self.landmarks[L_E].z)/2]
         h,w,_ = (self.image).shape
-        angle = self.get_angle_3d(a,b,c)
-        if angle > 95:
-            color = (255,0,0)
-        else: 
-            color = (0,255,0)
-        cv2.putText(self.image, str(angle), (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h)), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+        three_d_angle = self.get_angle_3d(a,b,c)
+        two_d_angle = self.get_angle_2D(a,b,c)
+        if two_d_angle > 90:
+            two_d_angle = 180 - two_d_angle
+        color=(0,255,0)
+        cv2.putText(self.image, "3D angle: "+str(three_d_angle), (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h)), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+        cv2.putText(self.image, "2D angle: "+str(two_d_angle), (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h+20)), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
 
         
     def get_angle_3d(self, a, b, c):
@@ -177,6 +178,20 @@ class detectPose():
         if deg_angle > 180:
             deg_angle = 360 - deg_angle
         return round(deg_angle,2)
+
+    def get_angle_2D(self, a, b, c):
+        # only take the x and y coordinates
+        a = np.array(a[:2])
+        b = np.array(b[:2])
+        c = np.array(c[:2])
+
+        ba = a - b
+        bc = c - b
+
+        cosine_angle = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc))
+        angle = np.arccos(cosine_angle)
+
+        return round(np.degrees(angle),2)
 
 def main():
     detector = detectPose()
