@@ -173,6 +173,8 @@ class detectPose():
         h,w,_ = (self.image).shape
         three_d_angle = self.get_angle_3d(a,b,c)
         two_d_angle = self.get_angle_2D(a,b,c)
+        ratio = self.neck_shoulders_ratio()
+
         if two_d_angle > 90:
             two_d_angle = 180 - two_d_angle
         color=(0,255,0)
@@ -180,12 +182,31 @@ class detectPose():
         for img in self.images():
             cv2.putText(img, "3D angle: "+str(three_d_angle), (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h)), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
             cv2.putText(img, "2D angle: "+str(two_d_angle), (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h+20)), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+            cv2.putText(img, "neck/shoulder ratio: "+str(round(ratio,2)), (70,20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+        
+
 
     def show(self):
         count = 1
         for img in self.images():
             cv2.imshow("Image "+str(count), img)
             count+=1
+
+    def neck_shoulders_ratio(self):
+        L_S = self.lmrk_d['LEFT_SHOULDER'] #11
+        R_S = self.lmrk_d['RIGHT_SHOULDER'] #12
+        L_E = self.lmrk_d['LEFT_EAR'] #7
+        R_E = self.lmrk_d['RIGHT_EAR'] #8
+        
+        a = [self.landmarks[L_S].x,self.landmarks[L_S].y]
+        b = [self.landmarks[R_S].x,self.landmarks[R_S].y]
+        length_shoulders = np.linalg.norm(np.array(a)-np.array(b))
+
+        c = [(self.landmarks[R_S].x+self.landmarks[L_S].x)/2, (self.landmarks[R_S].y+self.landmarks[L_S].y)/2]
+        d = [(self.landmarks[R_E].x+self.landmarks[L_E].x)/2, (self.landmarks[R_E].y+self.landmarks[L_E].y)/2]
+        
+        length_neck = np.linalg.norm(np.array(c)-np.array(d))
+        return length_neck/length_shoulders
 
     def get_angle_3d(self, a, b, c):
         """
