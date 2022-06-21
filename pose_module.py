@@ -50,7 +50,6 @@ class detectPose():
         fps = 1 / (curr_time - prev_time)
         prev_time = curr_time
         for img in self.images():
-            print(type(img))
             cv2.putText(img, (str(int(fps))), (10, 30), 
                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA, False)
         
@@ -71,6 +70,35 @@ class detectPose():
                     
         plt.show()
         fig.canvas.draw()
+
+    def detect_orientation(self, variation_threshold=0.02):
+        """
+        Detects a subject's orientation to the carema. Uses the percentage 
+        difference between the shoulders' heights (y-coordinates).
+        """
+        if not self.landmarks:
+            return
+        
+        # Using shoulders as reference
+        L_S = self.lmrk_d['LEFT_SHOULDER'] #11
+        R_S = self.lmrk_d['RIGHT_SHOULDER'] #12
+
+        L_Y = self.landmarks[L_S].y
+        R_Y = self.landmarks[R_S].y
+
+        # Calculate the % variation between the shoulders' y-coordinates
+        diff = abs((L_Y-R_Y)/((L_Y+R_Y)*2))
+
+        if diff < variation_threshold:
+            # for img in self.images():
+            #     cv2.putText(img, "Facing straight "+str(round(diff,5)), (40, 50), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
+            return "front"
+        else:
+            # for img in self.images():
+            #     cv2.putText(img, "Facing sideways "+str(round(diff,5)), (40, 50), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
+            return "side"
+        
+
 
     def process_landmarks(self, results, color=(0,0,255), thickness=2, draw = True):
         """
@@ -159,7 +187,7 @@ class detectPose():
     # TODO change to find angle between a point in front of person's chest in the center,
     # point middle point between two shoulders, and middle point between two ears
 
-    def neck_posture_angle(self, color=(0,0,255)):
+    def neck_posture(self, color=(0,0,255), ratio_threshold=0.65, angle_threshold=40):
         if not self.landmarks:
             return
         L_S = self.lmrk_d['LEFT_SHOULDER'] #11
@@ -180,10 +208,17 @@ class detectPose():
         color=(0,255,0)
 
         for img in self.images():
-            cv2.putText(img, "3D angle: "+str(three_d_angle), (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h)), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
-            cv2.putText(img, "2D angle: "+str(two_d_angle), (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h+20)), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
-            cv2.putText(img, "neck/shoulder ratio: "+str(round(ratio,2)), (70,20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
-        
+            # cv2.putText(img, "3D angle: "+str(three_d_angle), (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h)), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+
+            if self.detect_orientation(variation_threshold=0.018) == "front":
+                if ratio < ratio_threshold:
+                    color = (255,0,0)
+                cv2.putText(img, "ratio: "+str(round(ratio,2)), (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h+20)), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+            elif self.detect_orientation() == "side":
+                if two_d_angle < angle_threshold:
+                    color = (255,0,0)
+                cv2.putText(img, "angle: "+str(two_d_angle), (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h+20)), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+
 
 
     def show(self):
@@ -270,8 +305,9 @@ def main():
 
         prev_time = detector.show_fps(prev_time) # Shows FPS before reasssigning prev_time
         
-        detector.process_landmarks(results)
-        detector.neck_posture_angle()        
+        detector.process_landmarks(results, draw=True)
+        detector.neck_posture()        
+        detector.detect_orientation()
         detector.show()
         # cv2.imshow("Image 1", detector.image)
         # cv2.imshow("Image 2", detector.blank_image)
