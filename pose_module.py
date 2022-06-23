@@ -55,7 +55,7 @@ class detectPose():
         
         return prev_time
 
-    # TODO find a way to update the plot with the new self.landmarks instaed of creating a new one
+    # TODO find a way to update the plot with the new self.landmarks instead of creating a new one
     def create_plot(self, vis_threshold=0.9):
         fig = plt.figure(figsize=(5,5))
         ax = plt.axes(projection='3d')
@@ -73,7 +73,7 @@ class detectPose():
 
     def detect_orientation(self, variation_threshold=0.02):
         """
-        Detects a subject's orientation to the carema. Uses the percentage 
+        Detects a subject's orientation to the camera. Uses the percentage 
         difference between the shoulders' heights (y-coordinates).
         """
         if not self.landmarks:
@@ -187,7 +187,10 @@ class detectPose():
     # TODO change to find angle between a point in front of person's chest in the center,
     # point middle point between two shoulders, and middle point between two ears
 
-    def neck_posture(self, color=(0,0,255), ratio_threshold=0.65, angle_threshold=40):
+    def neck_posture(self, color=(0,0,255), auto_detect=False, ratio_threshold=0.65, angle_threshold=40):
+        """
+        auto_detect has to be True to use ratio_threshold and angle_threshold
+        """
         if not self.landmarks:
             return
         L_S = self.lmrk_d['LEFT_SHOULDER'] #11
@@ -199,33 +202,39 @@ class detectPose():
         b = [(self.landmarks[R_S].x+self.landmarks[L_S].x)/2,(self.landmarks[R_S].y+self.landmarks[L_S].y)/2,(self.landmarks[R_S].z+self.landmarks[L_S].z)/2]
         c = [(self.landmarks[R_E].x+self.landmarks[L_E].x)/2,(self.landmarks[R_E].y+self.landmarks[L_E].y)/2,(self.landmarks[R_E].z+self.landmarks[L_E].z)/2]
         h,w,_ = (self.image).shape
-        three_d_angle = self.get_angle_3d(a,b,c)
-        two_d_angle = self.get_angle_2D(a,b,c)
+        three_d_angle = self.get_angle(a,b,c,3)
+        two_d_angle = self.get_angle(a,b,c,2) #2d angle
         ratio = self.neck_shoulders_ratio()
 
         if two_d_angle > 90:
             two_d_angle = 180 - two_d_angle
+
+        if three_d_angle > 90:
+            three_d_angle = 180 - three_d_angle
+
         color=(0,255,0)
 
         for img in self.images():
-            # cv2.putText(img, "3D angle: "+str(three_d_angle), (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h)), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
 
-            if self.detect_orientation(variation_threshold=0.018) == "front":
-                if ratio < ratio_threshold:
-                    color = (255,0,0)
+
+            if auto_detect:
+                if self.detect_orientation(variation_threshold=0.018) == "front":
+                    if ratio < ratio_threshold:
+                        color = (255,0,0)
+                    cv2.putText(img, "ratio: "+str(round(ratio,2)), (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h+20)), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+                elif self.detect_orientation() == "side":
+                    if two_d_angle < angle_threshold:
+                        color = (255,0,0)
+                    cv2.putText(img, "angle: "+str(two_d_angle), (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h+20)), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+            else:
                 cv2.putText(img, "ratio: "+str(round(ratio,2)), (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h+20)), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
-            elif self.detect_orientation() == "side":
-                if two_d_angle < angle_threshold:
-                    color = (255,0,0)
-                cv2.putText(img, "angle: "+str(two_d_angle), (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h+20)), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
-
+                cv2.putText(img, "2D angle: "+str(round(two_d_angle,2)), (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h)), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+                cv2.putText(img, "3D angle: "+str(round(three_d_angle,2)), (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h-20)), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
 
 
     def show(self):
-        count = 1
-        for img in self.images():
-            cv2.imshow("Image "+str(count), img)
-            count+=1
+        for count, img in enumerate(self.images()):
+            cv2.imshow("Image "+str(count+1), img)
 
     def neck_shoulders_ratio(self):
         L_S = self.lmrk_d['LEFT_SHOULDER'] #11
@@ -243,14 +252,11 @@ class detectPose():
         length_neck = np.linalg.norm(np.array(c)-np.array(d))
         return length_neck/length_shoulders
 
-    def get_angle_3d(self, a, b, c):
-        """
-        Helper method that takes 3 lists of 3D coordinates
-        and return the angle in the 3D space.
-        """
-        a = np.array(a)
-        b = np.array(b)
-        c = np.array(c)
+    def get_angle(self, a:list, b:list, c:list, dimensions:int, decimals:int=2, less_than_180:bool=True):
+
+        a = np.array(a[:dimensions])
+        b = np.array(b[:dimensions])
+        c = np.array(c[:dimensions])
 
         ba = a - b
         bc = c - b
@@ -259,23 +265,11 @@ class detectPose():
         rad_angle = np.arccos(cosine_angle)
         deg_angle = np.degrees(rad_angle)
 
-        if deg_angle > 180:
+        if less_than_180 and deg_angle > 180:
             deg_angle = 360 - deg_angle
-        return round(deg_angle,2)
 
-    def get_angle_2D(self, a, b, c):
-        # only take the x and y coordinates
-        a = np.array(a[:2])
-        b = np.array(b[:2])
-        c = np.array(c[:2])
+        return round(deg_angle,decimals)
 
-        ba = a - b
-        bc = c - b
-
-        cosine_angle = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc))
-        angle = np.arccos(cosine_angle)
-
-        return round(np.degrees(angle),2)
 
 def main():
     detector = detectPose(show_video_image=True)
@@ -306,7 +300,7 @@ def main():
         prev_time = detector.show_fps(prev_time) # Shows FPS before reasssigning prev_time
         
         detector.process_landmarks(results, draw=True)
-        detector.neck_posture()        
+        detector.neck_posture(auto_detect=False)        
         detector.detect_orientation()
         detector.show()
         # cv2.imshow("Image 1", detector.image)
