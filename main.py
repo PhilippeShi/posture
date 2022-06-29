@@ -1,12 +1,18 @@
 import cv2
 import time
 from pose_module import detectPose
+import sys
 
 def main():
+    print(sys.argv)
+    print(type(sys.argv[1]))
+
+    
+
     detector = detectPose(show_video_image=True)
 
-    cap = cv2.VideoCapture("video_samples/4.mp4")
-    # cap = cv2.VideoCapture(0)
+    # cap = cv2.VideoCapture("video_samples/6.mp4")
+    cap = cv2.VideoCapture(0)
 
     prev_time = time.time()
 
@@ -31,7 +37,7 @@ def main():
         prev_time = detector.show_fps(prev_time) # Shows FPS before reasssigning prev_time
         
         detector.process_landmarks(results, draw=True)
-        detector.neck_posture()        
+        detector.neck_posture(auto_detect=False)        
         detector.detect_orientation()
         detector.show()
         # cv2.imshow("Image 1", detector.image)

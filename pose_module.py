@@ -91,16 +91,18 @@ class detectPose():
 
         if diff < variation_threshold:
             # for img in self.images():
-            #     cv2.putText(img, "Facing straight "+str(round(diff,5)), (40, 50), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
+            #     cv2.putText(img, "Facing straight "+str(round(diff,5)), (40, 50), 
+            #     cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
             return "front"
         else:
             # for img in self.images():
-            #     cv2.putText(img, "Facing sideways "+str(round(diff,5)), (40, 50), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
+            #     cv2.putText(img, "Facing sideways "+str(round(diff,5)), (40, 50), 
+            #     cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
             return "side"
         
 
 
-    def process_landmarks(self, results, color=(0,0,255), thickness=2, draw = True):
+    def process_landmarks(self, results, color=(0,0,255), thickness=2, draw = True, vis_threshold=0.5):
         """
         Sets self.lamndmarks if the results are valid
         Draws and links shoulders, hips, and neck self.landmarks 
@@ -115,26 +117,27 @@ class detectPose():
             return
     
         if self.landmarks:
-            h,w,d =(self.image).shape
+            h,w,_ =(self.image).shape
             L_S = self.lmrk_d['LEFT_SHOULDER'] #11
             R_S = self.lmrk_d['RIGHT_SHOULDER'] #12
             L_H = self.lmrk_d['LEFT_HIP'] #23
             R_H = self.lmrk_d['RIGHT_HIP'] #24
             L_E = self.lmrk_d['LEFT_EAR'] #7
             R_E = self.lmrk_d['RIGHT_EAR'] #8
-            
-            
+            L_K = self.lmrk_d['LEFT_KNEE'] #25
+            R_K = self.lmrk_d['RIGHT_KNEE'] #26
+            L_A = self.lmrk_d['LEFT_ANKLE'] #27
+            R_A = self.lmrk_d['RIGHT_ANKLE'] #28
 
             # draw points on shoulders, hips, ears
             for image in self.images():
-                lst = [L_S,R_S,L_H,R_H,L_E,R_E]
+                lst = [L_S, R_S, L_H, R_H, L_E, R_E, L_K, R_K, L_A, R_A]
                 for id in lst:
                     lm = self.landmarks[id]
-                    cx, cy = int(lm.x*w), int(lm.y*h)
-                    cv2.circle(image, center=(cx,cy), radius=3, color=color, thickness=thickness)
-               
-
-            
+                    if lm.visibility > vis_threshold:
+                        cx, cy = int(lm.x*w), int(lm.y*h)
+                        cv2.circle(image, center=(cx,cy), radius=3, color=color, thickness=thickness)
+                
                 # draw shoulder to shoulder
                 cv2.line(image, 
                     (int(self.landmarks[L_S].x*w), int(self.landmarks[L_S].y*h)), 
@@ -155,41 +158,64 @@ class detectPose():
                     (int(self.landmarks[L_H].x*w), int(self.landmarks[L_H].y*h)), 
                     (int(self.landmarks[R_H].x*w), int(self.landmarks[R_H].y*h)), 
                     color, thickness)
+                # draw left hip to left knee
+                if self.landmarks[L_K].visibility > vis_threshold:
+                    cv2.line(image, 
+                        (int(self.landmarks[L_H].x*w), int(self.landmarks[L_H].y*h)), 
+                        (int(self.landmarks[L_K].x*w), int(self.landmarks[L_K].y*h)), 
+                        color, thickness)
+                # draw right hip to right knee
+                if self.landmarks[R_K].visibility > vis_threshold:
+                    cv2.line(image, 
+                        (int(self.landmarks[R_H].x*w), int(self.landmarks[R_H].y*h)), 
+                        (int(self.landmarks[R_K].x*w), int(self.landmarks[R_K].y*h)), 
+                        color, thickness)
+                # draw left knee to left ankle
+                if self.landmarks[L_A].visibility > vis_threshold:
+                    cv2.line(image, 
+                        (int(self.landmarks[L_K].x*w), int(self.landmarks[L_K].y*h)), 
+                        (int(self.landmarks[L_A].x*w), int(self.landmarks[L_A].y*h)), 
+                        color, thickness)
+                # draw right knee to right ankle
+                if self.landmarks[R_A].visibility > vis_threshold:
+                    cv2.line(image, 
+                        (int(self.landmarks[R_K].x*w), int(self.landmarks[R_K].y*h)), 
+                        (int(self.landmarks[R_A].x*w), int(self.landmarks[R_A].y*h)), 
+                        color, thickness)
                 # draw left ear to right ear
                 cv2.line(image, 
                     (int(self.landmarks[L_E].x*w), int(self.landmarks[L_E].y*h)), 
                     (int(self.landmarks[R_E].x*w), int(self.landmarks[R_E].y*h)), 
                     color, thickness)
-                
+        
                 # if both ears visible, draw neck line between them
-                if self.landmarks[L_E].visibility > 0.95 and self.landmarks[R_E].visibility > 0.95:
+                if self.landmarks[L_E].visibility > vis_threshold and self.landmarks[R_E].visibility > vis_threshold:
                     cv2.line(image, 
-                        (int((self.landmarks[R_S].x+self.landmarks[L_S].x)*w/2), int((self.landmarks[R_S].y+self.landmarks[L_S].y)*h/2)), 
-                        (int((self.landmarks[R_E].x+self.landmarks[L_E].x)*w/2), int((self.landmarks[R_E].y+self.landmarks[L_E].y)*h/2)), 
+                        (int((self.landmarks[R_S].x+self.landmarks[L_S].x)*w/2), 
+                        int((self.landmarks[R_S].y+self.landmarks[L_S].y)*h/2)), 
+                        (int((self.landmarks[R_E].x+self.landmarks[L_E].x)*w/2), 
+                        int((self.landmarks[R_E].y+self.landmarks[L_E].y)*h/2)), 
                         color, thickness)
                 # if only left ear visible, draw neck line to left ear
-                elif self.landmarks[L_E].visibility > 0.95:
+                elif self.landmarks[L_E].visibility > vis_threshold:
                     cv2.line(image, 
-                        (int((self.landmarks[R_S].x+self.landmarks[L_S].x)*w/2), int((self.landmarks[R_S].y+self.landmarks[L_S].y)*h/2)), 
+                        (int((self.landmarks[R_S].x+self.landmarks[L_S].x)*w/2), 
+                        int((self.landmarks[R_S].y+self.landmarks[L_S].y)*h/2)), 
                         (int((self.landmarks[L_E].x)*w), int((self.landmarks[L_E].y)*h)), 
                         color, thickness)
                 # if only right ear visible, draw neck line to right ear
-                elif self.landmarks[R_E].visibility > 0.95:
+                elif self.landmarks[R_E].visibility > vis_threshold:
                     cv2.line(image, 
-                        (int((self.landmarks[R_S].x+self.landmarks[L_S].x)*w/2), int((self.landmarks[R_S].y+self.landmarks[L_S].y)*h/2)), 
+                        (int((self.landmarks[R_S].x+self.landmarks[L_S].x)*w/2), 
+                        int((self.landmarks[R_S].y+self.landmarks[L_S].y)*h/2)), 
                         (int((self.landmarks[R_E].x)*w), int((self.landmarks[R_E].y)*h)), 
                         color, thickness)
                 else:
                     print("NO EARS DETECTED")
 
-            
-
-    # TODO change to find angle between a point in front of person's chest in the center,
-    # point middle point between two shoulders, and middle point between two ears
 
     def neck_posture(self, color=(0,0,255), auto_detect=False, ratio_threshold=0.65, angle_threshold=40):
-        """
-        auto_detect has to be True to use ratio_threshold and angle_threshold
+        """ auto_detect has to be True to use ratio_threshold and angle_threshold
         """
         if not self.landmarks:
             return
@@ -198,9 +224,15 @@ class detectPose():
         L_E = self.lmrk_d['LEFT_EAR'] #7
         R_E = self.lmrk_d['RIGHT_EAR'] #8
 
-        a = [self.landmarks[R_S].x,self.landmarks[R_S].y,self.landmarks[R_S].z]
-        b = [(self.landmarks[R_S].x+self.landmarks[L_S].x)/2,(self.landmarks[R_S].y+self.landmarks[L_S].y)/2,(self.landmarks[R_S].z+self.landmarks[L_S].z)/2]
-        c = [(self.landmarks[R_E].x+self.landmarks[L_E].x)/2,(self.landmarks[R_E].y+self.landmarks[L_E].y)/2,(self.landmarks[R_E].z+self.landmarks[L_E].z)/2]
+        a = [self.landmarks[R_S].x, self.landmarks[R_S].y, self.landmarks[R_S].z]
+        
+        b = [(self.landmarks[R_S].x+self.landmarks[L_S].x)/2,
+            (self.landmarks[R_S].y+self.landmarks[L_S].y)/2,
+            (self.landmarks[R_S].z+self.landmarks[L_S].z)/2]
+
+        c = [(self.landmarks[R_E].x+self.landmarks[L_E].x)/2,
+            (self.landmarks[R_E].y+self.landmarks[L_E].y)/2,
+            (self.landmarks[R_E].z+self.landmarks[L_E].z)/2]
         h,w,_ = (self.image).shape
         three_d_angle = self.get_angle(a,b,c,3)
         two_d_angle = self.get_angle(a,b,c,2) #2d angle
@@ -215,21 +247,30 @@ class detectPose():
         color=(0,255,0)
 
         for img in self.images():
-
-
             if auto_detect:
                 if self.detect_orientation(variation_threshold=0.018) == "front":
                     if ratio < ratio_threshold:
                         color = (255,0,0)
-                    cv2.putText(img, "ratio: "+str(round(ratio,2)), (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h+20)), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+                    cv2.putText(img, "ratio: "+str(round(ratio,2)), 
+                        (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h+20)), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+
                 elif self.detect_orientation() == "side":
                     if two_d_angle < angle_threshold:
                         color = (255,0,0)
-                    cv2.putText(img, "angle: "+str(two_d_angle), (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h+20)), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+                    cv2.putText(img, "angle: "+str(two_d_angle), 
+                        (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h+20)), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
             else:
-                cv2.putText(img, "ratio: "+str(round(ratio,2)), (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h+20)), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
-                cv2.putText(img, "2D angle: "+str(round(two_d_angle,2)), (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h)), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
-                cv2.putText(img, "3D angle: "+str(round(three_d_angle,2)), (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h-20)), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+                cv2.putText(img, "ratio: "+str(round(ratio,2)), 
+                    (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h+20)), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+                cv2.putText(img, "2D angle: "+str(round(two_d_angle,2)), 
+                    (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h)), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+                cv2.putText(img, "3D angle: "+str(round(three_d_angle,2)), 
+                    (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h-20)), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
 
 
     def show(self):
@@ -279,7 +320,6 @@ def main():
 
     prev_time = time.time()
 
-    
     while cap.isOpened():
         success, image = cap.read()
         if not success:
@@ -299,13 +339,11 @@ def main():
 
         prev_time = detector.show_fps(prev_time) # Shows FPS before reasssigning prev_time
         
-        detector.process_landmarks(results, draw=True)
-        detector.neck_posture(auto_detect=False)        
-        detector.detect_orientation()
+        detector.process_landmarks(results, draw=True, vis_threshold=0.7)
+        detector.neck_posture(auto_detect=True)        
         detector.show()
         # cv2.imshow("Image 1", detector.image)
         # cv2.imshow("Image 2", detector.blank_image)
-
         if cv2.waitKey(10) & 0xFF == ord('q'):
             break
 
