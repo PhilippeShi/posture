@@ -23,9 +23,6 @@ class detectPose():
         for id,lm in enumerate((self.mp_pose).PoseLandmark):
             self.lmrk_d[str(lm)[13::]] = id
 
-    def toggle_auto_detect(self):
-        self.auto_detext = not self.auto_detext
-
     def set_images(self, image):
         self.image = image
         self.blank_image = np.zeros(image.shape, dtype=np.uint8)
@@ -38,8 +35,8 @@ class detectPose():
 
     def draw_all_landmarks(self, results):
         """
-        Draws all the self.landmarks on the self.image. The
-        method uses mediapipe's built-in utilities
+        Method uses mediapipe's built-in utilities. Sometimes creates inconsistent 
+        coloring of the video images.
         """
         for img in self.images():
             self.mp_drawing.draw_landmarks(
@@ -74,7 +71,7 @@ class detectPose():
         plt.show()
         fig.canvas.draw()
 
-    def detect_orientation(self, variation_threshold=0.02):
+    def detect_orientation(self, shoulder_height_variation_threshold=0.02):
         """
         Detects a subject's orientation to the camera. Uses the percentage 
         difference between the shoulders' heights (y-coordinates).
@@ -92,7 +89,7 @@ class detectPose():
         # Calculate the % variation between the shoulders' y-coordinates
         diff = abs((L_Y-R_Y)/((L_Y+R_Y)*2))
 
-        if diff < variation_threshold:
+        if diff < shoulder_height_variation_threshold:
             # for img in self.images():
             #     cv2.putText(img, "Facing straight "+str(round(diff,5)), (40, 50), 
             #     cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
@@ -105,7 +102,7 @@ class detectPose():
         
 
 
-    def process_landmarks(self, results, color=(0,0,255), thickness=2, draw = True, vis_threshold=0.5):
+    def process_landmarks(self, results, color=(0,0,255), thickness=2, draw=True, vis_threshold=0.5):
         """
         Sets self.lamndmarks if the results are valid
         Draws and links shoulders, hips, and neck self.landmarks 
@@ -217,10 +214,9 @@ class detectPose():
                     print("NO EARS DETECTED")
 
 
-    def neck_posture(self, color=(0,0,255), auto_detect=False, ratio_threshold=0.65, angle_threshold=40):
-        """ auto_detect has to be True to use ratio_threshold and angle_threshold
+    def neck_posture(self, color=(0,0,255), auto_detect_orientation=False, neck_ratio_threshold=0.65, neck_angle_threshold=40):
+        """ auto_detect_orientation has to be True to use neck_ratio_threshold and neck_angle_threshold
         """
-        self.auto_detext = auto_detect
         if not self.landmarks:
             return
         L_S = self.lmrk_d['LEFT_SHOULDER'] #11
@@ -251,16 +247,16 @@ class detectPose():
         color=(0,255,0)
 
         for img in self.images():
-            if auto_detect:
-                if self.detect_orientation(variation_threshold=0.018) == "front":
-                    if ratio < ratio_threshold:
+            if auto_detect_orientation:
+                if self.detect_orientation(shoulder_height_variation_threshold=0.018) == "front":
+                    if ratio < neck_ratio_threshold:
                         color = (255,0,0)
                     cv2.putText(img, "ratio: "+str(round(ratio,2)), 
                         (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h+20)), 
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
 
                 elif self.detect_orientation() == "side":
-                    if two_d_angle < angle_threshold:
+                    if two_d_angle < neck_angle_threshold:
                         color = (255,0,0)
                     cv2.putText(img, "angle: "+str(two_d_angle), 
                         (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h+20)), 
@@ -332,21 +328,14 @@ def main():
             break
 
         detector.set_images(image)
-
-        (detector.image).flags.writeable = False
         results = detector.pose.process(detector.image)
-
-        # Draw the pose annotation on the self.image.
-        (detector.image).flags.writeable = True
-
         prev_time = detector.show_fps(prev_time) # Shows FPS before reasssigning prev_time
         
-        detector.process_landmarks(results, draw=True, vis_threshold=0.7)
-        detector.draw_all_landmarks(results)
-        detector.neck_posture(auto_detect=True)        
+        detector.process_landmarks(results, vis_threshold=0.7)
+        # detector.draw_all_landmarks(results)
+        detector.neck_posture(auto_detect_orientation=True, neck_ratio_threshold=0.8, neck_angle_threshold=60)        
         detector.show()
-        # cv2.imshow("Image 1", detector.image)
-        # cv2.imshow("Image 2", detector.blank_image)
+        
         if cv2.waitKey(10) & 0xFF == ord('q'):
             break
 
