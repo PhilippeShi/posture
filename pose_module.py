@@ -71,7 +71,7 @@ class detectPose():
         plt.show()
         fig.canvas.draw()
 
-    def detect_orientation(self, shoulder_height_variation_threshold=0.02):
+    def detect_orientation(self, shoulder_height_variation_threshold):
         """
         Detects a subject's orientation to the camera. Uses the percentage 
         difference between the shoulders' heights (y-coordinates).
@@ -90,15 +90,9 @@ class detectPose():
         diff = abs((L_Y-R_Y)/((L_Y+R_Y)*2))
 
         if diff < shoulder_height_variation_threshold:
-            # for img in self.images():
-            #     cv2.putText(img, "Facing straight "+str(round(diff,5)), (40, 50), 
-            #     cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
-            return "front"
+            return "front", round(diff*100,2)
         else:
-            # for img in self.images():
-            #     cv2.putText(img, "Facing sideways "+str(round(diff,5)), (40, 50), 
-            #     cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
-            return "side"
+            return "side", round(diff*100,2)
         
 
 
@@ -214,7 +208,7 @@ class detectPose():
                     print("NO EARS DETECTED")
 
 
-    def neck_posture(self, color=(0,0,255), auto_detect_orientation=False, neck_ratio_threshold=0.65, neck_angle_threshold=40):
+    def neck_posture(self, color=(0,0,255), auto_detect_orientation=False, shoulder_height_variation_threshold=0.018, neck_ratio_threshold=0.65, neck_angle_threshold=40, put_orientation_text=False):
         """ auto_detect_orientation has to be True to use neck_ratio_threshold and neck_angle_threshold
         """
         if not self.landmarks:
@@ -246,28 +240,47 @@ class detectPose():
 
         color=(0,255,0)
 
-        for img in self.images():
-            if auto_detect_orientation:
-                if self.detect_orientation(shoulder_height_variation_threshold=0.018) == "front":
-                    if ratio < neck_ratio_threshold:
-                        color = (255,0,0)
+        
+        detected_orientation, diff = self.detect_orientation(shoulder_height_variation_threshold)
+
+        if put_orientation_text:
+            for img in self.images():
+                cv2.putText(img, f"{detected_orientation} {str(diff)}", (0, 70), 
+                cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
+
+
+        if auto_detect_orientation:
+            if detected_orientation == "front":
+                if ratio < neck_ratio_threshold:
+                    color = (255,0,0)
+                for img in self.images():
                     cv2.putText(img, "ratio: "+str(round(ratio,2)), 
                         (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h+20)), 
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+                
+                
 
-                elif self.detect_orientation() == "side":
-                    if two_d_angle < neck_angle_threshold:
-                        color = (255,0,0)
+            elif detected_orientation == "side":
+                if two_d_angle < neck_angle_threshold:
+                    color = (255,0,0)
+                for img in self.images():
                     cv2.putText(img, "angle: "+str(two_d_angle), 
                         (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h+20)), 
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
-            else:
+        else:
+            
+            two_d_color, ratio_color = (0,255,0), (0,255,0)
+            if two_d_angle < neck_angle_threshold:
+                two_d_color = (255,0,0)
+            if ratio < neck_ratio_threshold:
+                ratio_color = (255,0,0)
+            for img in self.images():
                 cv2.putText(img, "ratio: "+str(round(ratio,2)), 
                     (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h+20)), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, ratio_color, 2)
                 cv2.putText(img, "2D angle: "+str(round(two_d_angle,2)), 
                     (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h)), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, two_d_color, 2)
                 cv2.putText(img, "3D angle: "+str(round(three_d_angle,2)), 
                     (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h-20)), 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
@@ -333,7 +346,12 @@ def main():
         
         detector.process_landmarks(results, vis_threshold=0.7)
         # detector.draw_all_landmarks(results)
-        detector.neck_posture(auto_detect_orientation=True, neck_ratio_threshold=0.8, neck_angle_threshold=60)        
+        detector.neck_posture(
+            auto_detect_orientation=True, 
+            neck_ratio_threshold=0.8, 
+            neck_angle_threshold=60,
+            put_orientation_text=True
+            )        
         detector.show()
         
         if cv2.waitKey(10) & 0xFF == ord('q'):

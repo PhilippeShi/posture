@@ -15,6 +15,8 @@ class App:
             vis_threshold=0.7,
             neck_ratio_threshold=0.70,
             neck_angle_threshold=70,
+            shoulder_height_variation_threshold=0.018,
+            put_orientation_text=True
             ):
         self.window = window
         self.window.title(window_title)
@@ -27,49 +29,74 @@ class App:
         self.vis_threshold = vis_threshold
         self.neck_ratio_threshold = neck_ratio_threshold
         self.neck_angle_threshold = neck_angle_threshold
+        self.shoulder_height_variation_threshold = shoulder_height_variation_threshold
+        self.put_orientation_text = put_orientation_text
 
         # open video source (by default this will try to open the computer webcam)
         self.cap = MyVideoCapture(self.video_source, show_video)
 
-        self.width = self.cap.width
-        self.height = self.cap.height
-
         # Create a canvas that can fit the above video source size
         if show_video:
-            self.canvas = tk.Canvas(window, width = self.width*2, height = self.height)
+            self.canvas = tk.Canvas(window, width = self.cap.width*2, height=self.cap.height)
         else:
-            self.canvas = tk.Canvas(window, width = self.width, height = self.height)
+            self.canvas = tk.Canvas(window, width = self.cap.width, height=self.cap.height)
         self.canvas.pack()
 
-        self.btn_width = 50
+        self.btn_width = 10
+        self.btn_height = 1
+        self.scale_length = 230
         # Button that lets the user take a snapshot
-        self.btn_snapshot=tk.Button(window, text="Snapshot", width=self.btn_width, command=self.snapshot)
+        self.btn_snapshot=tk.Button(window, text="Snapshot", width=self.btn_width, height=self.btn_height, command=self.snapshot)
         self.btn_snapshot.pack(anchor=tk.CENTER, expand=True)
         
-        self.btn_toggle_auto_detect_orientation=tk.Button(window, text="Auto Detect", width=self.btn_width, command=self.toggle_auto_detect_orientation)
+        self.btn_toggle_auto_detect_orientation=tk.Button(window, text="Auto Detect", width=self.btn_width, height=self.btn_height, command=self.toggle_auto_detect_orientation)
         self.btn_toggle_auto_detect_orientation.pack(anchor=tk.CENTER, expand=True)
 
-        self.btn_toggle_show_video=tk.Button(window, text="Show Video", width=self.btn_width, command=self.toggle_show_video)
+        self.btn_toggle_show_video=tk.Button(window, text="Show Video", width=self.btn_width, height=self.btn_height, command=self.toggle_show_video)
         self.btn_toggle_show_video.pack(anchor=tk.CENTER, expand=True)
         
-        self.scale = tk.Scale(self.window, from_=0, to=100, orient=tk.HORIZONTAL)
-        self.scale.pack()
+        self.scale_vis_threshold = tk.Scale(self.window, from_=0, to=99, orient=tk.HORIZONTAL, command=self.change_vis_threshold, length=self.scale_length, label="Visibility Threshold (%)")
+        self.scale_vis_threshold.set(int(self.vis_threshold*100))
+        self.scale_vis_threshold.pack()
+        
+        self.scale_neck_ratio_threshold = tk.Scale(self.window, from_=0, to=1, resolution=0.01, digits=3 ,orient=tk.HORIZONTAL, command=self.change_neck_ratio_threshold, length=self.scale_length, label="Neck/Shoulder Ratio Threshold")
+        self.scale_neck_ratio_threshold.set(self.neck_ratio_threshold)
+        self.scale_neck_ratio_threshold.pack()
+        
+        self.scale_neck_angle_threshold = tk.Scale(self.window, from_=0, to=90, orient=tk.HORIZONTAL, command=self.change_neck_angle_threshold, length=self.scale_length, label="Neck Angle Threshold (deg)")
+        self.scale_neck_angle_threshold.set(self.neck_angle_threshold)
+        self.scale_neck_angle_threshold.pack()
 
-        self.num_ctrl = 4
+        self.scale_shoulder_height_variation_threshold = tk.Scale(self.window, from_=0, to=5, resolution=0.05, digits=3, orient=tk.HORIZONTAL, command=self.change_shoulder_height_variation_threshold, length=self.scale_length, label="Shoulder Height Difference Threshold (%)")
+        self.scale_shoulder_height_variation_threshold.set(self.shoulder_height_variation_threshold*100)
+        self.scale_shoulder_height_variation_threshold.pack()
+
         # # After it is called once, the update method will be automatically called every delay milliseconds
         self.delay = 15
         self.update()
 
         self.window.mainloop()
 
+    def change_vis_threshold(self, value):
+        self.vis_threshold = int(value)/100
+
+    def change_neck_ratio_threshold(self, value):
+        self.neck_ratio_threshold = float(value)
+    
+    def change_neck_angle_threshold(self, value):
+        self.neck_angle_threshold = int(value)
+
+    def change_shoulder_height_variation_threshold(self, value):
+        self.shoulder_height_variation_threshold = float(value)/100
+
     def toggle_show_video(self):
         self.show_video = not self.show_video
         if self.show_video:
-            self.canvas = tk.Canvas(self.window, width=self.width*2, height=self.height)
-            self.window.geometry("%dx%d" % (self.width*2, self.height + (self.num_ctrl-1)*self.btn_width-10))
+            self.canvas = tk.Canvas(self.window, width=self.cap.width*2, height=self.cap.height)
+            self.window.geometry("%dx%d" % (self.cap.width*2, self.window.winfo_height()))
         else:
-            self.canvas = tk.Canvas(self.window, width = self.width, height = self.height)
-            self.window.geometry("%dx%d" % (self.width, self.height + (self.num_ctrl-1)*self.btn_width-10))
+            self.canvas = tk.Canvas(self.window, width = self.cap.width, height=self.cap.height)
+            self.window.geometry("%dx%d" % (self.cap.width, self.window.winfo_height()))
         self.canvas.place(x=0, y=0)
 
     def toggle_auto_detect_orientation(self):
@@ -98,6 +125,8 @@ class App:
             vis_threshold=self.vis_threshold,
             neck_angle_threshold=self.neck_angle_threshold,
             neck_ratio_threshold=self.neck_ratio_threshold,
+            shoulder_height_variation_threshold=self.shoulder_height_variation_threshold,
+            put_orientation_text=self.put_orientation_text,
             )
 
         if ret:
@@ -131,7 +160,9 @@ class MyVideoCapture:
         draw_pose_landmarks=True,
         vis_threshold=0.7,
         neck_angle_threshold=80,
-        neck_ratio_threshold=0.70
+        neck_ratio_threshold=0.70,
+        shoulder_height_variation_threshold=0.018,
+        put_orientation_text=True,
         ):
 
         if self.cap.isOpened():
@@ -158,8 +189,9 @@ class MyVideoCapture:
             self.detector.neck_posture(
                 auto_detect_orientation=auto_detect_orientation,
                 neck_angle_threshold=neck_angle_threshold,
-                neck_ratio_threshold=neck_ratio_threshold)        
-            self.detector.detect_orientation()
+                neck_ratio_threshold=neck_ratio_threshold,
+                shoulder_height_variation_threshold=shoulder_height_variation_threshold,
+                put_orientation_text=put_orientation_text)        
             
             return (ret, cv2.cvtColor(self.detector.blank_image, cv2.COLOR_BGR2RGB), 
             cv2.cvtColor(self.detector.image, cv2.COLOR_BGR2RGB))
@@ -174,9 +206,11 @@ if __name__ == "__main__":
     App(tk.Tk(), "Tkinter and OpenCV", 
         video_source=0, 
         show_video=True, 
-        auto_detect_orientation=True,
+        auto_detect_orientation=False,
         vis_threshold=0.7,
         draw_all_landmarks=False,
         neck_ratio_threshold=0.7,
         neck_angle_threshold=60,
+        shoulder_height_variation_threshold=0.018,
+        put_orientation_text=True,
     )
