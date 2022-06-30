@@ -4,8 +4,8 @@ from pose_module import detectPose
 import sys
 
 def main():
-    print(sys.argv)
-    print(type(sys.argv[1]))
+    # print(sys.argv)
+    # print(type(sys.argv[1]))
 
     
 
