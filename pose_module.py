@@ -23,6 +23,9 @@ class detectPose():
         for id,lm in enumerate((self.mp_pose).PoseLandmark):
             self.lmrk_d[str(lm)[13::]] = id
 
+    def toggle_auto_detect(self):
+        self.auto_detext = not self.auto_detext
+
     def set_images(self, image):
         self.image = image
         self.blank_image = np.zeros(image.shape, dtype=np.uint8)
@@ -217,6 +220,7 @@ class detectPose():
     def neck_posture(self, color=(0,0,255), auto_detect=False, ratio_threshold=0.65, angle_threshold=40):
         """ auto_detect has to be True to use ratio_threshold and angle_threshold
         """
+        self.auto_detext = auto_detect
         if not self.landmarks:
             return
         L_S = self.lmrk_d['LEFT_SHOULDER'] #11
@@ -330,16 +334,15 @@ def main():
         detector.set_images(image)
 
         (detector.image).flags.writeable = False
-        detector.image = cv2.cvtColor(detector.image, cv2.COLOR_BGR2RGB)
         results = detector.pose.process(detector.image)
 
         # Draw the pose annotation on the self.image.
         (detector.image).flags.writeable = True
-        detector.image = cv2.cvtColor((detector.image), cv2.COLOR_RGB2BGR)
 
         prev_time = detector.show_fps(prev_time) # Shows FPS before reasssigning prev_time
         
         detector.process_landmarks(results, draw=True, vis_threshold=0.7)
+        detector.draw_all_landmarks(results)
         detector.neck_posture(auto_detect=True)        
         detector.show()
         # cv2.imshow("Image 1", detector.image)
