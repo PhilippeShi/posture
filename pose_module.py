@@ -23,9 +23,44 @@ class detectPose():
         for id,lm in enumerate((self.mp_pose).PoseLandmark):
             self.lmrk_d[str(lm)[13::]] = id
 
-    def set_images(self, image):
-        self.image = image
-        self.blank_image = np.zeros(image.shape, dtype=np.uint8)
+    def set_images(self, image, resize_image_height_to=None, resize_image_width_to=None, resize_image_to=None):
+        if resize_image_to:
+            self.image = cv2.resize(image, resize_image_to)
+        elif resize_image_height_to and resize_image_width_to:
+            self.image = cv2.resize(image, (resize_image_width_to, resize_image_height_to))
+        elif resize_image_height_to:
+            dim = self.image_resize(image.shape, height=resize_image_height_to)
+            self.image = cv2.resize(image, dim) 
+        elif resize_image_width_to:
+            dim = self.image_resize(image.shape, width=resize_image_width_to)
+            self.image = cv2.resize(image, dim)
+        else:
+            self.image = image
+        self.blank_image = np.zeros(self.image.shape, dtype=np.uint8)
+
+
+    @staticmethod
+    def image_resize(image_dim, width = None, height = None, inter = cv2.INTER_AREA):
+        dim = None
+        h, w, _ = image_dim
+
+        if width is None and height is None:
+            return w,h
+
+        if (width is not None) and width > w or (height is not None) and height > h:
+            return w,h
+
+        if width is None:
+            r = height / float(h)
+            dim = (int(w * r), height)
+
+        else:
+            r = width / float(w)
+            dim = (width, int(h * r))
+
+        return dim
+            
+
 
     def images(self):
         if self.show_video_image:
@@ -239,34 +274,36 @@ class detectPose():
             three_d_angle = 180 - three_d_angle
 
         color=(0,255,0)
-
         
         detected_orientation, diff = self.detect_orientation(shoulder_height_variation_threshold)
+        good_posture = True
 
         if put_orientation_text:
             for img in self.images():
                 cv2.putText(img, f"{detected_orientation} {str(diff)}", (0, 70), 
                 cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
 
-
         if auto_detect_orientation:
             if detected_orientation == "front":
                 if ratio < neck_ratio_threshold:
                     color = (255,0,0)
+                    good_posture = False
                 for img in self.images():
                     cv2.putText(img, "ratio: "+str(round(ratio,2)), 
                         (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h+20)), 
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+                    
                 
-                
-
             elif detected_orientation == "side":
                 if two_d_angle < neck_angle_threshold:
+                    good_posture = False
                     color = (255,0,0)
                 for img in self.images():
                     cv2.putText(img, "angle: "+str(two_d_angle), 
                         (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h+20)), 
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+            
+
         else:
             
             two_d_color, ratio_color = (0,255,0), (0,255,0)
@@ -284,6 +321,8 @@ class detectPose():
                 cv2.putText(img, "3D angle: "+str(round(three_d_angle,2)), 
                     (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h-20)), 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+                    
+        return good_posture
 
 
     def show(self):
@@ -306,7 +345,8 @@ class detectPose():
         length_neck = np.linalg.norm(np.array(c)-np.array(d))
         return length_neck/length_shoulders
 
-    def get_angle(self, a:list, b:list, c:list, dimensions:int, decimals:int=2, less_than_180:bool=True):
+    @staticmethod
+    def get_angle(a:list, b:list, c:list, dimensions:int, decimals:int=2, less_than_180:bool=True):
 
         a = np.array(a[:dimensions])
         b = np.array(b[:dimensions])
@@ -332,6 +372,8 @@ def main():
     cap = cv2.VideoCapture(0)
 
     prev_time = time.time()
+    time_bad_posture = 0
+    good_posture = True
 
     while cap.isOpened():
         success, image = cap.read()
@@ -340,18 +382,29 @@ def main():
             # If loading a video, use 'break' instead of 'continue'.
             break
 
+        # detector.set_images(image, resize_image_height_to=400, resize_image_width_to=200)
         detector.set_images(image)
         results = detector.pose.process(detector.image)
-        prev_time = detector.show_fps(prev_time) # Shows FPS before reasssigning prev_time
         
         detector.process_landmarks(results, vis_threshold=0.7)
         # detector.draw_all_landmarks(results)
-        detector.neck_posture(
+        good_posture = detector.neck_posture(
             auto_detect_orientation=True, 
-            neck_ratio_threshold=0.8, 
+            neck_ratio_threshold=0.70, 
             neck_angle_threshold=60,
             put_orientation_text=True
-            )        
+            ) 
+        if good_posture:
+            time_bad_posture = 0
+
+        elif not good_posture:
+            time_bad_posture += time.time() - prev_time
+            cv2.putText(detector.image, str(int(time_bad_posture)), (10,100), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
+            if time_bad_posture > 1:
+                cv2.putText(detector.image, f"MORE THAN {int(time_bad_posture)}s!", (0,150), cv2.FONT_HERSHEY_SIMPLEX, 2, (0,0,255), 10)
+
+
+        prev_time = detector.show_fps(prev_time) # Shows FPS before reasssigning prev_time
         detector.show()
         
         if cv2.waitKey(10) & 0xFF == ord('q'):
@@ -362,3 +415,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+    # TODO - Add alert for when bad posture is detected for more than X seconds

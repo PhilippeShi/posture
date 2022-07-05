@@ -16,7 +16,11 @@ class App:
             neck_ratio_threshold=0.70,
             neck_angle_threshold=70,
             shoulder_height_variation_threshold=0.018,
-            put_orientation_text=True
+            put_orientation_text=True,
+            resize_image_to=None,
+            resize_image_width_to=None,
+            resize_image_height_to=None,
+            time_bad_posture_alert=5,
             ):
         self.window = window
         self.window.title(window_title)
@@ -31,10 +35,21 @@ class App:
         self.neck_angle_threshold = neck_angle_threshold
         self.shoulder_height_variation_threshold = shoulder_height_variation_threshold
         self.put_orientation_text = put_orientation_text
+        self.resize_image_to = resize_image_to
+        self.resize_image_width_to = resize_image_width_to
+        self.resize_image_height_to = resize_image_height_to
+        self.time_bad_posture_alert = time_bad_posture_alert
 
         # open video source (by default this will try to open the computer webcam)
         self.cap = MyVideoCapture(self.video_source, show_video)
 
+        if self.resize_image_to is not None:
+            self.cap.width = self.resize_image_to[0]
+            self.cap.height = self.resize_image_to[1]
+        
+        if resize_image_width_to is not None or resize_image_height_to is not None:
+            width, height = detectPose.image_resize((self.cap.height, self.cap.width, None), width=resize_image_width_to, height=resize_image_height_to)
+            self.cap.width, self.cap.height = width, height
         # Create a canvas that can fit the above video source size
         if show_video:
             self.canvas = tk.Canvas(window, width = self.cap.width*2, height=self.cap.height)
@@ -74,7 +89,6 @@ class App:
         # # After it is called once, the update method will be automatically called every delay milliseconds
         self.delay = 15
         self.update()
-
         self.window.mainloop()
 
     def change_vis_threshold(self, value):
@@ -127,6 +141,10 @@ class App:
             neck_ratio_threshold=self.neck_ratio_threshold,
             shoulder_height_variation_threshold=self.shoulder_height_variation_threshold,
             put_orientation_text=self.put_orientation_text,
+            resize_image_to=self.resize_image_to,
+            resize_image_width_to=self.resize_image_width_to,
+            resize_image_height_to=self.resize_image_height_to,
+            time_bad_posture_alert=self.time_bad_posture_alert,
             )
 
         if ret:
@@ -152,6 +170,7 @@ class MyVideoCapture:
         self.height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
         self.detector = detectPose(show_video_image=self.show_video)
         self.prev_time = time.time()
+        self.time_bad_posture = 0
 
     def get_frame(self, 
         auto_detect_orientation=False, 
@@ -163,8 +182,11 @@ class MyVideoCapture:
         neck_ratio_threshold=0.70,
         shoulder_height_variation_threshold=0.018,
         put_orientation_text=True,
+        resize_image_to=None,
+        resize_image_width_to=None,
+        resize_image_height_to=None,
+        time_bad_posture_alert=5,
         ):
-
         if self.cap.isOpened():
             ret, image = self.cap.read()
             if not ret:
@@ -175,24 +197,38 @@ class MyVideoCapture:
             # when false, avoid unnecessary computation
             self.detector.show_video_image = show_video 
 
-            self.detector.set_images(image)
+            self.detector.set_images(image, 
+                resize_image_to=resize_image_to, 
+                resize_image_width_to=resize_image_width_to, 
+                resize_image_height_to=resize_image_height_to)
+
             (self.detector.image).flags.writeable = False
             results = self.detector.pose.process(self.detector.image)
-            # Draw the pose annotation on the self.image.
+            # Draw the pose annotation on the self.image
             (self.detector.image).flags.writeable = True
 
-            self.prev_time = self.detector.show_fps(self.prev_time)
             self.detector.process_landmarks(results, draw=draw_pose_landmarks, vis_threshold=vis_threshold)
 
             if draw_all_landmarks:
                 self.detector.draw_all_landmarks(results)
-            self.detector.neck_posture(
+            good_posture = self.detector.neck_posture(
                 auto_detect_orientation=auto_detect_orientation,
                 neck_angle_threshold=neck_angle_threshold,
                 neck_ratio_threshold=neck_ratio_threshold,
                 shoulder_height_variation_threshold=shoulder_height_variation_threshold,
                 put_orientation_text=put_orientation_text)        
-            
+            if good_posture:
+                self.time_bad_posture = 0
+
+            elif not good_posture:
+                self.time_bad_posture += time.time() - self.prev_time
+                cv2.putText(self.detector.image, "time bad posture: "+str(round(float(self.time_bad_posture),3)), (0,100), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
+        
+                if self.time_bad_posture > time_bad_posture_alert:
+                    cv2.putText(self.detector.image, f"MORE THAN {int(self.time_bad_posture)}s!", (0,150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 3)
+
+            self.prev_time = self.detector.show_fps(self.prev_time)
+
             return (ret, cv2.cvtColor(self.detector.blank_image, cv2.COLOR_BGR2RGB), 
             cv2.cvtColor(self.detector.image, cv2.COLOR_BGR2RGB))
 
@@ -205,7 +241,8 @@ class MyVideoCapture:
 if __name__ == "__main__":
     App(tk.Tk(), "Tkinter and OpenCV", 
         video_source=0, 
-        show_video=True, 
+        # video_source="video_samples/6.mp4",
+        show_video=True,
         auto_detect_orientation=False,
         vis_threshold=0.7,
         draw_all_landmarks=False,
@@ -213,4 +250,8 @@ if __name__ == "__main__":
         neck_angle_threshold=60,
         shoulder_height_variation_threshold=0.018,
         put_orientation_text=True,
+        # resize_image_to=(640, 480),
+        resize_image_height_to=300,
+        # resize_image_width_to=640,
+        time_bad_posture_alert=5,
     )
