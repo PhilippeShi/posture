@@ -55,3 +55,5 @@ pyinstaller main.spec
 ```
 
 Install the executable file [here](dist/main.exe)
+
+[How large files are tracked using Git LFS](https://docs.github.com/en/repositories/working-with-files/managing-large-files/configuring-git-large-file-storage)
