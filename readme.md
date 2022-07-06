@@ -54,4 +54,4 @@ Now, run to create the executable file
 pyinstaller main.spec
 ```
 
-Install the executable file [here] (dist/main.exe) 
+Install the executable file [here](dist/main.exe)
