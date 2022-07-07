@@ -2,7 +2,8 @@ import tkinter as tk
 import cv2
 import PIL.Image, PIL.ImageTk
 import time
-from pose_module import detectPose
+from detect_posture.pose import detectPose
+from detect_posture.utils import image_resize
 import os
 
 class App:
@@ -48,7 +49,7 @@ class App:
             self.cap.height = self.resize_image_to[1]
         
         if resize_image_width_to is not None or resize_image_height_to is not None:
-            width, height = detectPose.image_resize((self.cap.height, self.cap.width, None), width=resize_image_width_to, height=resize_image_height_to)
+            width, height = image_resize((self.cap.height, self.cap.width, None), width=resize_image_width_to, height=resize_image_height_to)
             self.cap.width, self.cap.height = width, height
         # Create a canvas that can fit the above video source size
         if show_video:
