@@ -43,6 +43,10 @@ class App:
 
         # open video source (by default this will try to open the computer webcam)
         self.cap = MyVideoCapture(self.video_source, show_video)
+        
+        
+        all_widgets = []
+        self.neck_widgets = []
 
         if self.resize_image_to is not None:
             self.cap.width = self.resize_image_to[0]
@@ -56,41 +60,86 @@ class App:
             self.canvas = tk.Canvas(window, width = self.cap.width*2, height=self.cap.height)
         else:
             self.canvas = tk.Canvas(window, width = self.cap.width, height=self.cap.height)
-        self.canvas.pack()
+        # self.canvas.pack()
+        # self.canvas.grid(row=0, column=0, columnspan=2)
+        all_widgets.append(self.canvas)
 
         self.btn_width = 10
         self.btn_height = 1
         self.scale_length = 230
+
+
         # Button that lets the user take a snapshot
         self.btn_snapshot=tk.Button(window, text="Snapshot", width=self.btn_width, height=self.btn_height, command=self.snapshot)
-        self.btn_snapshot.pack(anchor=tk.CENTER, expand=True)
-        
+        # self.btn_snapshot.pack(anchor=tk.CENTER, expand=True)
+        # self.btn_snapshot.grid(row=1, column=0)
+        all_widgets.append(self.btn_snapshot)
+
         self.btn_toggle_auto_detect_orientation=tk.Button(window, text="Auto Detect", width=self.btn_width, height=self.btn_height, command=self.toggle_auto_detect_orientation)
-        self.btn_toggle_auto_detect_orientation.pack(anchor=tk.CENTER, expand=True)
+        # self.btn_toggle_auto_detect_orientation.pack(anchor=tk.CENTER, expand=True)
+        # self.btn_toggle_auto_detect_orientation.grid(row=2, column=0)
+        all_widgets.append(self.btn_toggle_auto_detect_orientation)
 
         self.btn_toggle_show_video=tk.Button(window, text="Show Video", width=self.btn_width, height=self.btn_height, command=self.toggle_show_video)
-        self.btn_toggle_show_video.pack(anchor=tk.CENTER, expand=True)
+        # self.btn_toggle_show_video.pack(anchor=tk.CENTER, expand=True)
+        # self.btn_toggle_show_video.grid(row=3, column=0)
+        all_widgets.append(self.btn_toggle_show_video)
         
+        self.btn_toggle_neck_widgets=tk.Button(window, text="Neck Settings", width=self.btn_width, height=self.btn_height, command=self.neck_settings)
+        all_widgets.append(self.btn_toggle_neck_widgets)
+
         self.scale_vis_threshold = tk.Scale(self.window, from_=0, to=99, orient=tk.HORIZONTAL, command=self.change_vis_threshold, length=self.scale_length, label="Visibility Threshold (%)")
         self.scale_vis_threshold.set(int(self.vis_threshold*100))
-        self.scale_vis_threshold.pack()
+        # self.scale_vis_threshold.pack()
+        # self.scale_vis_threshold.grid(row=1, column=1)
+        all_widgets.append(self.scale_vis_threshold)
         
         self.scale_neck_ratio_threshold = tk.Scale(self.window, from_=0, to=1, resolution=0.01, digits=3 ,orient=tk.HORIZONTAL, command=self.change_neck_ratio_threshold, length=self.scale_length, label="Neck/Shoulder Ratio Threshold")
         self.scale_neck_ratio_threshold.set(self.neck_ratio_threshold)
-        self.scale_neck_ratio_threshold.pack()
+        # self.scale_neck_ratio_threshold.pack()
+        # self.scale_neck_ratio_threshold.grid(row=2, column=1)
+        # all_widgets.append(self.scale_neck_ratio_threshold)
+        self.neck_widgets.append(self.scale_neck_ratio_threshold)
         
         self.scale_neck_angle_threshold = tk.Scale(self.window, from_=0, to=90, orient=tk.HORIZONTAL, command=self.change_neck_angle_threshold, length=self.scale_length, label="Neck Angle Threshold (deg)")
         self.scale_neck_angle_threshold.set(self.neck_angle_threshold)
-        self.scale_neck_angle_threshold.pack()
+        # self.scale_neck_angle_threshold.pack()
+        # self.scale_neck_angle_threshold.grid(row=3, column=1)
+        # all_widgets.append(self.scale_neck_angle_threshold)
+        self.neck_widgets.append(self.scale_neck_angle_threshold)
 
         self.scale_shoulder_height_variation_threshold = tk.Scale(self.window, from_=0, to=5, resolution=0.05, digits=3, orient=tk.HORIZONTAL, command=self.change_shoulder_height_variation_threshold, length=self.scale_length, label="Shoulder Height Difference Threshold (%)")
         self.scale_shoulder_height_variation_threshold.set(self.shoulder_height_variation_threshold*100)
-        self.scale_shoulder_height_variation_threshold.pack()
+        # self.scale_shoulder_height_variation_threshold.pack()
+        # self.scale_shoulder_height_variation_threshold.grid(row=4, column=1)
+        # all_widgets.append(self.scale_shoulder_height_variation_threshold)
+        self.neck_widgets.append(self.scale_shoulder_height_variation_threshold)
+        
+        self.initialize(all_widgets)
+        self.neck_widgets_shown = False
+        self.neck_settings()
 
         # # After it is called once, the update method will be automatically called every delay milliseconds
         self.delay = 15
         self.update()
         self.window.mainloop()
+
+    def initialize(self, widgets):
+        for widget in widgets:
+            widget.pack()
+
+    def neck_settings(self):
+        if self.neck_widgets_shown is False:
+            self.neck_widgets_shown = True
+            for w in self.neck_widgets:
+                w.pack()
+        else:
+            self.neck_widgets_shown = False
+            for w in self.neck_widgets:
+                w.forget()
+                
+
+        
 
     def change_vis_threshold(self, value):
         self.vis_threshold = int(value)/100
