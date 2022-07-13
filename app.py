@@ -18,14 +18,14 @@ class App:
             neck_ratio_threshold=0.70,
             neck_angle_threshold=70,
             shoulder_height_variation_threshold=0.018,
+            shoulder_hip_variation_threshold=0.4,
             put_orientation_text=True,
             resize_image_width_to=None,
             resize_image_height_to=None,
             time_bad_posture_alert=5,
             show_fps=True,
-            shoulder_hip_variation_threshold=0.4,
             ):
-            
+
         self.window = window
         self.window.title(window_title)
 
@@ -38,12 +38,12 @@ class App:
         self.neck_ratio_threshold = neck_ratio_threshold
         self.neck_angle_threshold = neck_angle_threshold
         self.shoulder_height_variation_threshold = shoulder_height_variation_threshold
+        self.shoulder_hip_variation_threshold = shoulder_hip_variation_threshold
         self.put_orientation_text = put_orientation_text
         self.resize_image_width_to = resize_image_width_to
         self.resize_image_height_to = resize_image_height_to
         self.time_bad_posture_alert = time_bad_posture_alert
         self.show_fps = show_fps
-        self.shoulder_hip_variation_threshold = shoulder_hip_variation_threshold
 
         # open video source (by default this will try to open the computer webcam)
         self.cap = MyVideoCapture(self.video_source, show_video)
@@ -109,9 +109,10 @@ class App:
         self.neck_widgets.append(self.scale_shoulder_height_variation_threshold)
         self.all_widgets.append(self.scale_shoulder_height_variation_threshold)
         
-        self.initialize(self.all_widgets)
+        # self.initialize(self.all_widgets)
+        self.initialize(self.shown_widgets)
         self.neck_widgets_shown = False
-        self.neck_settings()
+        # self.neck_settings()
 
         # # After it is called once, the update method will be automatically called every delay milliseconds
         self.delay = 15
@@ -137,6 +138,7 @@ class App:
             "neck_ratio_threshold" : self.neck_ratio_threshold,
             "neck_angle_threshold" : self.neck_angle_threshold,
             "shoulder_height_variation_threshold" : self.shoulder_height_variation_threshold,
+            "shoulder_hip_variation_threshold" : self.shoulder_hip_variation_threshold,
             "put_orientation_text" : self.put_orientation_text,
             "resize_image_width_to" : self.resize_image_width_to,
             "resize_image_height_to" : self.resize_image_height_to,
@@ -198,20 +200,20 @@ class App:
     def update(self):
         # Get a frame from the video source
         ret, frame, frame2 = self.cap.get_frame(
-            auto_detect_orientation=self.auto_detect_orientation, 
             show_video=self.show_video,
+            auto_detect_orientation=self.auto_detect_orientation, 
             draw_all_landmarks=self.draw_all_landmarks,
             draw_pose_landmarks=self.draw_pose_landmarks,
             vis_threshold=self.vis_threshold,
-            neck_angle_threshold=self.neck_angle_threshold,
             neck_ratio_threshold=self.neck_ratio_threshold,
+            neck_angle_threshold=self.neck_angle_threshold,
             shoulder_height_variation_threshold=self.shoulder_height_variation_threshold,
+            shoulder_hip_variation_threshold=self.shoulder_hip_variation_threshold,
             put_orientation_text=self.put_orientation_text,
             resize_image_width_to=self.resize_image_width_to,
             resize_image_height_to=self.resize_image_height_to,
             time_bad_posture_alert=self.time_bad_posture_alert,
             show_fps=self.show_fps,
-            shoulder_hip_variation_threshold=self.shoulder_hip_variation_threshold,
             )
 
         if ret:
@@ -240,20 +242,20 @@ class MyVideoCapture:
         self.time_bad_posture = 0
 
     def get_frame(self,
-        auto_detect_orientation=False,
         show_video=False,
+        auto_detect_orientation=False,
         draw_all_landmarks=True,
         draw_pose_landmarks=True,
         vis_threshold=0.7,
-        neck_angle_threshold=80,
         neck_ratio_threshold=0.70,
+        neck_angle_threshold=80,
         shoulder_height_variation_threshold=0.018,
+        shoulder_hip_variation_threshold=0.4,
         put_orientation_text=True,
         resize_image_width_to=None,
         resize_image_height_to=None,
         time_bad_posture_alert=5,
         show_fps=True,
-        shoulder_hip_variation_threshold=0.4,
         ):
         if self.cap.isOpened():
             ret, image = self.cap.read()
@@ -284,6 +286,7 @@ class MyVideoCapture:
                 neck_angle_threshold=neck_angle_threshold,
                 neck_ratio_threshold=neck_ratio_threshold,
                 shoulder_height_variation_threshold=shoulder_height_variation_threshold,
+                shoulder_hip_variation_threshold=shoulder_hip_variation_threshold,
                 put_orientation_text=put_orientation_text)       
             
             self.detector.detect_orientation_2(shoulder_hip_variation_threshold=shoulder_hip_variation_threshold)
@@ -323,15 +326,15 @@ if __name__ == "__main__":
         "draw_all_landmarks" : False,
         "draw_pose_landmarks" : True,
         "vis_threshold" : 0.7,
-        "neck_ratio_threshold" : 0.7,
+        "neck_ratio_threshold" : 0.65,
         "neck_angle_threshold" : 60,
         "shoulder_height_variation_threshold" : 0.018,
-        "put_orientation_text" : False,
-        "resize_image_width_to" : 600,
+        "shoulder_hip_variation_threshold" : 0.5,
+        "put_orientation_text" : True,
+        "resize_image_width_to" : 400,
         "resize_image_height_to" : None,
         "time_bad_posture_alert" : 2,
         "show_fps" : False,
-        "shoulder_hip_variation_threshold" : 0.5,
         }
 
     App(tk.Tk(), "Tkinter and OpenCV", 
@@ -344,12 +347,12 @@ if __name__ == "__main__":
         neck_ratio_threshold = settings["neck_ratio_threshold"],
         neck_angle_threshold = settings["neck_angle_threshold"],
         shoulder_height_variation_threshold = settings["shoulder_height_variation_threshold"],
+        shoulder_hip_variation_threshold = settings["shoulder_hip_variation_threshold"],
         put_orientation_text = settings["put_orientation_text"],
         resize_image_width_to = settings["resize_image_width_to"],
         resize_image_height_to = settings["resize_image_height_to"],
         time_bad_posture_alert = settings["time_bad_posture_alert"],
         show_fps = settings["show_fps"],
-        shoulder_hip_variation_threshold = settings["shoulder_hip_variation_threshold"],
     )
 
     

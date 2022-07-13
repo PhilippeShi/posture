@@ -232,13 +232,13 @@ class detectPose():
         ratio = self.shoulders_hips_ratio()
 
         if ratio > shoulder_hip_variation_threshold:
-            for img in self.images():
-                cv2.putText(img, "front"+str(round(ratio,2)), (0,25), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 2)
-            return "front", round(ratio*100,2)
+            # for img in self.images():
+            #     cv2.putText(img, "front"+str(round(ratio,2)), (0,25), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 2)
+            return "front", round(ratio,3)
         else:
-            for img in self.images():
-                cv2.putText(img, "side"+str(round(ratio,2)), (0,25), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 2)
-            return "side", round(ratio*100,2)
+            # for img in self.images():
+            #     cv2.putText(img, "side"+str(round(ratio,2)), (0,25), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 2)
+            return "side", round(ratio,3)
     
     def shoulders_hips_ratio(self):
         if not self.landmarks:
@@ -264,7 +264,9 @@ class detectPose():
         return length_shoulders/hips_shoulders_length
 
     def neck_posture(self, color=(0,0,255), auto_detect_orientation=False, 
-        shoulder_height_variation_threshold=0.018, neck_ratio_threshold=0.65, 
+        shoulder_height_variation_threshold=0.018, 
+        shoulder_hip_variation_threshold=0.45,
+        neck_ratio_threshold=0.65, 
         neck_angle_threshold=40, put_orientation_text=False):
         """ 
         auto_detect_orientation has to be True to use neck_ratio_threshold and neck_angle_threshold
@@ -298,8 +300,11 @@ class detectPose():
             three_d_angle = 180 - three_d_angle
 
         color=(0,255,0)
-        
-        detected_orientation, diff = self.detect_orientation(shoulder_height_variation_threshold)
+        if shoulder_hip_variation_threshold is not None:
+            detected_orientation, diff = self.detect_orientation_2(shoulder_hip_variation_threshold)
+        else:
+            detected_orientation, diff = self.detect_orientation(shoulder_height_variation_threshold)
+
         good_posture = True
 
         if put_orientation_text:
@@ -394,7 +399,7 @@ def main():
             put_orientation_text=True
             ) 
         
-        detector.detect_orientation_2(shoulder_hip_variation_threshold=0.5)
+        detector.detect_orientation_2(shoulder_hip_variation_threshold=0.45)
 
         if good_posture:
             time_bad_posture = 0
