@@ -9,8 +9,8 @@ import json
 
 class App:
     def __init__(self, window, window_title, 
-            video_source=0, 
-            show_video=False, 
+            video_source=0,
+            show_video=False,
             auto_detect_orientation=False,
             draw_all_landmarks=False,
             draw_pose_landmarks=True,
@@ -22,7 +22,10 @@ class App:
             resize_image_width_to=None,
             resize_image_height_to=None,
             time_bad_posture_alert=5,
+            show_fps=True,
+            shoulder_hip_variation_threshold=0.4,
             ):
+            
         self.window = window
         self.window.title(window_title)
 
@@ -39,6 +42,8 @@ class App:
         self.resize_image_width_to = resize_image_width_to
         self.resize_image_height_to = resize_image_height_to
         self.time_bad_posture_alert = time_bad_posture_alert
+        self.show_fps = show_fps
+        self.shoulder_hip_variation_threshold = shoulder_hip_variation_threshold
 
         # open video source (by default this will try to open the computer webcam)
         self.cap = MyVideoCapture(self.video_source, show_video)
@@ -47,10 +52,10 @@ class App:
         self.all_widgets = []
         self.neck_widgets = []
         self.shown_widgets = []
- 
-        if resize_image_width_to is not None or resize_image_height_to is not None:
-            width, height = image_resize((self.cap.height, self.cap.width, None), width=resize_image_width_to, height=resize_image_height_to)
-            self.cap.width, self.cap.height = width, height
+
+        width, height = image_resize((self.cap.height, self.cap.width, None), width=resize_image_width_to, height=resize_image_height_to)
+        self.cap.width, self.cap.height = width, height
+
         # Create a canvas that can fit the above video source size
         if show_video:
             self.canvas = tk.Canvas(window, width = self.cap.width*2, height=self.cap.height)
@@ -205,6 +210,8 @@ class App:
             resize_image_width_to=self.resize_image_width_to,
             resize_image_height_to=self.resize_image_height_to,
             time_bad_posture_alert=self.time_bad_posture_alert,
+            show_fps=self.show_fps,
+            shoulder_hip_variation_threshold=self.shoulder_hip_variation_threshold,
             )
 
         if ret:
@@ -232,10 +239,10 @@ class MyVideoCapture:
         self.prev_time = time.time()
         self.time_bad_posture = 0
 
-    def get_frame(self, 
-        auto_detect_orientation=False, 
-        show_video=False, 
-        draw_all_landmarks=True, 
+    def get_frame(self,
+        auto_detect_orientation=False,
+        show_video=False,
+        draw_all_landmarks=True,
         draw_pose_landmarks=True,
         vis_threshold=0.7,
         neck_angle_threshold=80,
@@ -245,6 +252,8 @@ class MyVideoCapture:
         resize_image_width_to=None,
         resize_image_height_to=None,
         time_bad_posture_alert=5,
+        show_fps=True,
+        shoulder_hip_variation_threshold=0.4,
         ):
         if self.cap.isOpened():
             ret, image = self.cap.read()
@@ -269,25 +278,32 @@ class MyVideoCapture:
 
             if draw_all_landmarks:
                 self.detector.draw_all_landmarks(results)
+
             good_posture = self.detector.neck_posture(
                 auto_detect_orientation=auto_detect_orientation,
                 neck_angle_threshold=neck_angle_threshold,
                 neck_ratio_threshold=neck_ratio_threshold,
                 shoulder_height_variation_threshold=shoulder_height_variation_threshold,
-                put_orientation_text=put_orientation_text)        
+                put_orientation_text=put_orientation_text)       
+            
+            self.detector.detect_orientation_2(shoulder_hip_variation_threshold=shoulder_hip_variation_threshold)
+
+
             if good_posture:
                 self.time_bad_posture = 0
 
             elif not good_posture:
                 self.time_bad_posture += time.time() - self.prev_time
-                cv2.putText(self.detector.image, "time bad posture: "+str(round(float(self.time_bad_posture),3)), (0,100), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
-                cv2.putText(self.detector.blank_image, "time bad posture: "+str(round(float(self.time_bad_posture),3)), (0,100), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
+                for img in self.detector.images():
+                    cv2.putText(img, "time bad posture: "+str(round(float(self.time_bad_posture),3)), (0,100), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
         
-                if self.time_bad_posture > time_bad_posture_alert:
-                    cv2.putText(self.detector.image, f"MORE THAN {int(self.time_bad_posture)}s!", (0,150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 3)
-                    cv2.putText(self.detector.blank_image, f"MORE THAN {int(self.time_bad_posture)}s!", (0,150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 3)
+                    if self.time_bad_posture > time_bad_posture_alert:
+                        cv2.putText(img, f"MORE THAN {int(self.time_bad_posture)}s!", (0,150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 3)
 
-            self.prev_time = self.detector.show_fps(self.prev_time)
+            if show_fps:
+                self.prev_time = self.detector.show_fps(self.prev_time)
+            else:
+                self.prev_time = time.time()
 
             return (ret, cv2.cvtColor(self.detector.blank_image, cv2.COLOR_BGR2RGB), 
             cv2.cvtColor(self.detector.image, cv2.COLOR_BGR2RGB))
@@ -301,18 +317,21 @@ class MyVideoCapture:
 if __name__ == "__main__":
     settings = {
         "video_source" : 0,
+        # "video_source" : "video_samples/4.mp4",
         "show_video" : True,
         "auto_detect_orientation" : True,
-        "draw_all_landmarks" : True,
+        "draw_all_landmarks" : False,
         "draw_pose_landmarks" : True,
         "vis_threshold" : 0.7,
         "neck_ratio_threshold" : 0.7,
         "neck_angle_threshold" : 60,
         "shoulder_height_variation_threshold" : 0.018,
-        "put_orientation_text" : True,
-        "resize_image_width_to" : None,
-        "resize_image_height_to" : 800,
+        "put_orientation_text" : False,
+        "resize_image_width_to" : 600,
+        "resize_image_height_to" : None,
         "time_bad_posture_alert" : 2,
+        "show_fps" : False,
+        "shoulder_hip_variation_threshold" : 0.5,
         }
 
     App(tk.Tk(), "Tkinter and OpenCV", 
@@ -326,8 +345,11 @@ if __name__ == "__main__":
         neck_angle_threshold = settings["neck_angle_threshold"],
         shoulder_height_variation_threshold = settings["shoulder_height_variation_threshold"],
         put_orientation_text = settings["put_orientation_text"],
+        resize_image_width_to = settings["resize_image_width_to"],
         resize_image_height_to = settings["resize_image_height_to"],
         time_bad_posture_alert = settings["time_bad_posture_alert"],
+        show_fps = settings["show_fps"],
+        shoulder_hip_variation_threshold = settings["shoulder_hip_variation_threshold"],
     )
 
     

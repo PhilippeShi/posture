@@ -202,7 +202,6 @@ class detectPose():
                 else:
                     print("NO EARS DETECTED")
 
-
     def detect_orientation(self, shoulder_height_variation_threshold):
         """
         Detects a subject's orientation to the camera. Uses the percentage 
@@ -226,6 +225,43 @@ class detectPose():
         else:
             return "side", round(diff*100,2)
 
+    def detect_orientation_2(self, shoulder_hip_variation_threshold):
+        if not self.landmarks:
+            return
+        
+        ratio = self.shoulders_hips_ratio()
+
+        if ratio > shoulder_hip_variation_threshold:
+            for img in self.images():
+                cv2.putText(img, "front"+str(round(ratio,2)), (0,25), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 2)
+            return "front", round(ratio*100,2)
+        else:
+            for img in self.images():
+                cv2.putText(img, "side"+str(round(ratio,2)), (0,25), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 2)
+            return "side", round(ratio*100,2)
+    
+    def shoulders_hips_ratio(self):
+        if not self.landmarks:
+            return
+        
+        # Using shoulders as reference
+        L_S = self.lmrk_d['LEFT_SHOULDER']
+        R_S = self.lmrk_d['RIGHT_SHOULDER']
+        L_H = self.lmrk_d['LEFT_HIP']
+        R_H = self.lmrk_d['RIGHT_HIP']
+
+        LS = [self.landmarks[L_S].x, self.landmarks[L_S].y]
+        RS = [self.landmarks[R_S].x, self.landmarks[R_S].y]
+        length_shoulders = np.linalg.norm(np.array(LS)-np.array(RS))
+
+        LH = [self.landmarks[L_H].x, self.landmarks[L_H].y]
+        RH = [self.landmarks[R_H].x, self.landmarks[R_H].y]
+
+        left_side = np.linalg.norm(np.array(LH)-np.array(LS))
+        right_side = np.linalg.norm(np.array(RH)-np.array(RS))
+        hips_shoulders_length = (left_side + right_side)/2
+
+        return length_shoulders/hips_shoulders_length
 
     def neck_posture(self, color=(0,0,255), auto_detect_orientation=False, 
         shoulder_height_variation_threshold=0.018, neck_ratio_threshold=0.65, 
@@ -357,6 +393,9 @@ def main():
             neck_angle_threshold=60,
             put_orientation_text=True
             ) 
+        
+        detector.detect_orientation_2(shoulder_hip_variation_threshold=0.5)
+
         if good_posture:
             time_bad_posture = 0
 

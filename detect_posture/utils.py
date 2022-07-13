@@ -1,6 +1,10 @@
 import numpy as np
 
 def image_resize(image_dim, width = None, height = None):
+    """
+    param:image_dim (height, width, _ )
+    return (height, width)
+    """
     dim = None
     h, w, _ = image_dim
 
