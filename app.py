@@ -5,6 +5,7 @@ import time
 from detect_posture.pose import detectPose
 from detect_posture.utils import image_resize
 import os
+import json
 
 class App:
     def __init__(self, window, window_title, 
@@ -18,7 +19,6 @@ class App:
             neck_angle_threshold=70,
             shoulder_height_variation_threshold=0.018,
             put_orientation_text=True,
-            resize_image_to=None,
             resize_image_width_to=None,
             resize_image_height_to=None,
             time_bad_posture_alert=5,
@@ -36,7 +36,6 @@ class App:
         self.neck_angle_threshold = neck_angle_threshold
         self.shoulder_height_variation_threshold = shoulder_height_variation_threshold
         self.put_orientation_text = put_orientation_text
-        self.resize_image_to = resize_image_to
         self.resize_image_width_to = resize_image_width_to
         self.resize_image_height_to = resize_image_height_to
         self.time_bad_posture_alert = time_bad_posture_alert
@@ -45,13 +44,10 @@ class App:
         self.cap = MyVideoCapture(self.video_source, show_video)
         
         
-        all_widgets = []
+        self.all_widgets = []
         self.neck_widgets = []
-
-        if self.resize_image_to is not None:
-            self.cap.width = self.resize_image_to[0]
-            self.cap.height = self.resize_image_to[1]
-        
+        self.shown_widgets = []
+ 
         if resize_image_width_to is not None or resize_image_height_to is not None:
             width, height = image_resize((self.cap.height, self.cap.width, None), width=resize_image_width_to, height=resize_image_height_to)
             self.cap.width, self.cap.height = width, height
@@ -62,60 +58,53 @@ class App:
             self.canvas = tk.Canvas(window, width = self.cap.width, height=self.cap.height)
         # self.canvas.pack()
         # self.canvas.grid(row=0, column=0, columnspan=2)
-        all_widgets.append(self.canvas)
+        self.all_widgets.append(self.canvas)
+        self.shown_widgets.append(self.canvas)
 
-        self.btn_width = 10
-        self.btn_height = 1
-        self.scale_length = 230
+        btn_width = 10
+        scale_length = 230
 
+        # # Button that lets the user take a snapshot
+        # self.btn_snapshot=tk.Button(window, text="Snapshot", width=btn_width, command=self.snapshot)
+        # self.all_widgets.append(self.btn_snapshot)
 
-        # Button that lets the user take a snapshot
-        self.btn_snapshot=tk.Button(window, text="Snapshot", width=self.btn_width, height=self.btn_height, command=self.snapshot)
-        # self.btn_snapshot.pack(anchor=tk.CENTER, expand=True)
-        # self.btn_snapshot.grid(row=1, column=0)
-        all_widgets.append(self.btn_snapshot)
+        self.btn_toggle_auto_detect_orientation=tk.Button(self.window, text="Auto Detect", width=btn_width, command=self.toggle_auto_detect_orientation)
+        self.all_widgets.append(self.btn_toggle_auto_detect_orientation)
+        self.shown_widgets.append(self.btn_toggle_auto_detect_orientation)
 
-        self.btn_toggle_auto_detect_orientation=tk.Button(window, text="Auto Detect", width=self.btn_width, height=self.btn_height, command=self.toggle_auto_detect_orientation)
-        # self.btn_toggle_auto_detect_orientation.pack(anchor=tk.CENTER, expand=True)
-        # self.btn_toggle_auto_detect_orientation.grid(row=2, column=0)
-        all_widgets.append(self.btn_toggle_auto_detect_orientation)
+        self.btn_toggle_show_video=tk.Button(self.window, text="Show Video", width=btn_width, command=self.toggle_show_video)
+        self.all_widgets.append(self.btn_toggle_show_video)
+        self.shown_widgets.append(self.btn_toggle_show_video)
 
-        self.btn_toggle_show_video=tk.Button(window, text="Show Video", width=self.btn_width, height=self.btn_height, command=self.toggle_show_video)
-        # self.btn_toggle_show_video.pack(anchor=tk.CENTER, expand=True)
-        # self.btn_toggle_show_video.grid(row=3, column=0)
-        all_widgets.append(self.btn_toggle_show_video)
+        self.btn_save_settings=tk.Button(self.window, text="Save Settings", width=btn_width, command=self.save_settings)
+        self.all_widgets.append(self.btn_save_settings)
+        self.shown_widgets.append(self.btn_save_settings)
         
-        self.btn_toggle_neck_widgets=tk.Button(window, text="Neck Settings", width=self.btn_width, height=self.btn_height, command=self.neck_settings)
-        all_widgets.append(self.btn_toggle_neck_widgets)
+        self.btn_toggle_neck_widgets=tk.Button(self.window, text="Neck Settings", width=btn_width, command=self.neck_settings)
+        self.all_widgets.append(self.btn_toggle_neck_widgets)
+        self.shown_widgets.append(self.btn_toggle_neck_widgets)
 
-        self.scale_vis_threshold = tk.Scale(self.window, from_=0, to=99, orient=tk.HORIZONTAL, command=self.change_vis_threshold, length=self.scale_length, label="Visibility Threshold (%)")
+        self.scale_vis_threshold = tk.Scale(self.window, from_=0, to=99, orient=tk.HORIZONTAL, command=self.change_vis_threshold, length=scale_length, label="Visibility Threshold (%)")
         self.scale_vis_threshold.set(int(self.vis_threshold*100))
-        # self.scale_vis_threshold.pack()
-        # self.scale_vis_threshold.grid(row=1, column=1)
-        all_widgets.append(self.scale_vis_threshold)
+        self.all_widgets.append(self.scale_vis_threshold)
+        self.shown_widgets.append(self.scale_vis_threshold)
         
-        self.scale_neck_ratio_threshold = tk.Scale(self.window, from_=0, to=1, resolution=0.01, digits=3 ,orient=tk.HORIZONTAL, command=self.change_neck_ratio_threshold, length=self.scale_length, label="Neck/Shoulder Ratio Threshold")
+        self.scale_neck_ratio_threshold = tk.Scale(self.window, from_=0, to=1, resolution=0.01, digits=3 ,orient=tk.HORIZONTAL, command=self.change_neck_ratio_threshold, length=scale_length, label="Neck/Shoulder Ratio Threshold")
         self.scale_neck_ratio_threshold.set(self.neck_ratio_threshold)
-        # self.scale_neck_ratio_threshold.pack()
-        # self.scale_neck_ratio_threshold.grid(row=2, column=1)
-        # all_widgets.append(self.scale_neck_ratio_threshold)
         self.neck_widgets.append(self.scale_neck_ratio_threshold)
+        self.all_widgets.append(self.scale_neck_ratio_threshold)
         
-        self.scale_neck_angle_threshold = tk.Scale(self.window, from_=0, to=90, orient=tk.HORIZONTAL, command=self.change_neck_angle_threshold, length=self.scale_length, label="Neck Angle Threshold (deg)")
+        self.scale_neck_angle_threshold = tk.Scale(self.window, from_=0, to=90, orient=tk.HORIZONTAL, command=self.change_neck_angle_threshold, length=scale_length, label="Neck Angle Threshold (deg)")
         self.scale_neck_angle_threshold.set(self.neck_angle_threshold)
-        # self.scale_neck_angle_threshold.pack()
-        # self.scale_neck_angle_threshold.grid(row=3, column=1)
-        # all_widgets.append(self.scale_neck_angle_threshold)
         self.neck_widgets.append(self.scale_neck_angle_threshold)
+        self.all_widgets.append(self.scale_neck_angle_threshold)
 
-        self.scale_shoulder_height_variation_threshold = tk.Scale(self.window, from_=0, to=5, resolution=0.05, digits=3, orient=tk.HORIZONTAL, command=self.change_shoulder_height_variation_threshold, length=self.scale_length, label="Shoulder Height Difference Threshold (%)")
+        self.scale_shoulder_height_variation_threshold = tk.Scale(self.window, from_=0, to=5, resolution=0.05, digits=3, orient=tk.HORIZONTAL, command=self.change_shoulder_height_variation_threshold, length=scale_length, label="Shoulder Height Difference Threshold (%)")
         self.scale_shoulder_height_variation_threshold.set(self.shoulder_height_variation_threshold*100)
-        # self.scale_shoulder_height_variation_threshold.pack()
-        # self.scale_shoulder_height_variation_threshold.grid(row=4, column=1)
-        # all_widgets.append(self.scale_shoulder_height_variation_threshold)
         self.neck_widgets.append(self.scale_shoulder_height_variation_threshold)
+        self.all_widgets.append(self.scale_shoulder_height_variation_threshold)
         
-        self.initialize(all_widgets)
+        self.initialize(self.all_widgets)
         self.neck_widgets_shown = False
         self.neck_settings()
 
@@ -127,6 +116,30 @@ class App:
     def initialize(self, widgets):
         for widget in widgets:
             widget.pack()
+    
+    def forget_all(self, widgets):
+        for widget in widgets:
+            widget.pack_forget()
+
+    def save_settings(self):
+        d = {
+            "video_source" : self.video_source,
+            "show_video" : self.show_video,
+            "auto_detect_orientation" : self.auto_detect_orientation,
+            "draw_all_landmarks" : self.draw_all_landmarks,
+            "draw_pose_landmarks" : self.draw_pose_landmarks,
+            "vis_threshold" : self.vis_threshold,
+            "neck_ratio_threshold" : self.neck_ratio_threshold,
+            "neck_angle_threshold" : self.neck_angle_threshold,
+            "shoulder_height_variation_threshold" : self.shoulder_height_variation_threshold,
+            "put_orientation_text" : self.put_orientation_text,
+            "resize_image_width_to" : self.resize_image_width_to,
+            "resize_image_height_to" : self.resize_image_height_to,
+            "time_bad_posture_alert" : self.time_bad_posture_alert,
+        }
+        with open('settings.json', 'w') as f:
+            json.dump(d, f)
+        print("Settings saved")
 
     def neck_settings(self):
         if self.neck_widgets_shown is False:
@@ -138,8 +151,6 @@ class App:
             for w in self.neck_widgets:
                 w.forget()
                 
-
-        
 
     def change_vis_threshold(self, value):
         self.vis_threshold = int(value)/100
@@ -191,7 +202,6 @@ class App:
             neck_ratio_threshold=self.neck_ratio_threshold,
             shoulder_height_variation_threshold=self.shoulder_height_variation_threshold,
             put_orientation_text=self.put_orientation_text,
-            resize_image_to=self.resize_image_to,
             resize_image_width_to=self.resize_image_width_to,
             resize_image_height_to=self.resize_image_height_to,
             time_bad_posture_alert=self.time_bad_posture_alert,
@@ -232,7 +242,6 @@ class MyVideoCapture:
         neck_ratio_threshold=0.70,
         shoulder_height_variation_threshold=0.018,
         put_orientation_text=True,
-        resize_image_to=None,
         resize_image_width_to=None,
         resize_image_height_to=None,
         time_bad_posture_alert=5,
@@ -248,7 +257,6 @@ class MyVideoCapture:
             self.detector.show_video_image = show_video 
 
             self.detector.set_images(image, 
-                resize_image_to=resize_image_to, 
                 resize_image_width_to=resize_image_width_to, 
                 resize_image_height_to=resize_image_height_to)
 
@@ -273,9 +281,11 @@ class MyVideoCapture:
             elif not good_posture:
                 self.time_bad_posture += time.time() - self.prev_time
                 cv2.putText(self.detector.image, "time bad posture: "+str(round(float(self.time_bad_posture),3)), (0,100), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
+                cv2.putText(self.detector.blank_image, "time bad posture: "+str(round(float(self.time_bad_posture),3)), (0,100), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
         
                 if self.time_bad_posture > time_bad_posture_alert:
                     cv2.putText(self.detector.image, f"MORE THAN {int(self.time_bad_posture)}s!", (0,150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 3)
+                    cv2.putText(self.detector.blank_image, f"MORE THAN {int(self.time_bad_posture)}s!", (0,150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 3)
 
             self.prev_time = self.detector.show_fps(self.prev_time)
 
@@ -289,19 +299,35 @@ class MyVideoCapture:
 
 # Create a window and pass it to the Application object
 if __name__ == "__main__":
+    settings = {
+        "video_source" : 0,
+        "show_video" : True,
+        "auto_detect_orientation" : True,
+        "draw_all_landmarks" : True,
+        "draw_pose_landmarks" : True,
+        "vis_threshold" : 0.7,
+        "neck_ratio_threshold" : 0.7,
+        "neck_angle_threshold" : 60,
+        "shoulder_height_variation_threshold" : 0.018,
+        "put_orientation_text" : True,
+        "resize_image_width_to" : None,
+        "resize_image_height_to" : 800,
+        "time_bad_posture_alert" : 2,
+        }
+
     App(tk.Tk(), "Tkinter and OpenCV", 
-        video_source=0, 
-        # video_source="video_samples/6.mp4",
-        show_video=True,
-        auto_detect_orientation=False,
-        vis_threshold=0.7,
-        draw_all_landmarks=False,
-        neck_ratio_threshold=0.7,
-        neck_angle_threshold=60,
-        shoulder_height_variation_threshold=0.018,
-        put_orientation_text=True,
-        # resize_image_to=(640, 480),
-        resize_image_height_to=300,
-        # resize_image_width_to=640,
-        time_bad_posture_alert=5,
+        video_source = settings["video_source"], 
+        show_video = settings["show_video"],
+        auto_detect_orientation = settings["auto_detect_orientation"],
+        vis_threshold = settings["vis_threshold"],
+        draw_all_landmarks = settings["draw_all_landmarks"],
+        draw_pose_landmarks = settings["draw_pose_landmarks"],
+        neck_ratio_threshold = settings["neck_ratio_threshold"],
+        neck_angle_threshold = settings["neck_angle_threshold"],
+        shoulder_height_variation_threshold = settings["shoulder_height_variation_threshold"],
+        put_orientation_text = settings["put_orientation_text"],
+        resize_image_height_to = settings["resize_image_height_to"],
+        time_bad_posture_alert = settings["time_bad_posture_alert"],
     )
+
+    
