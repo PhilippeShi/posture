@@ -8,10 +8,10 @@ def image_resize(image_dim, width = None, height = None):
     dim = None
     h, w, _ = image_dim
 
-    if width is None and height is None:
+    if (type(width) is not int) and (type(height) is not int):
         return w,h
 
-    elif (width is not None) and width > w or (height is not None) and height > h:
+    elif (type(width) is int) and width > w or (type(height) is int) and height > h:
         return w,h
 
     if width is None:
