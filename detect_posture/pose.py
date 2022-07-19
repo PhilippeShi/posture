@@ -74,23 +74,6 @@ class detectPose():
         for count, img in enumerate(self.images()):
             cv2.imshow("Image "+str(count+1), img)
 
-    # TODO find a way to update the plot with the new self.landmarks instead of creating a new one
-    def create_plot(self, vis_threshold=0.9):
-        fig = plt.figure(figsize=(5,5))
-        ax = plt.axes(projection='3d')
-        ax.set_xlabel('x')
-        ax.set_ylabel('y')
-        ax.set_zlabel('z')
-        if self.landmarks:
-            for key in self.lmrk_d.keys():
-                point = self.landmarks[self.lmrk_d[key]]
-                if point.visibility > vis_threshold:
-                    ax.scatter(point.x,point.y,point.z)
-                    
-        plt.show()
-        fig.canvas.draw()
-
-
     def process_landmarks(self, results, color=(0,0,255), thickness=2, draw=True, vis_threshold=0.5):
         """
         Sets self.lamndmarks if the results are valid
