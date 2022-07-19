@@ -117,16 +117,15 @@ class App:
         self.neck_widgets.append(self.scale_neck_angle_threshold)
         self.all_widgets["Neck Angle Threshold (deg)"] = self.scale_neck_angle_threshold
 
-        self.scale_shoulder_height_variation_threshold = tk.Scale(self.window, from_=0, to=5, resolution=0.05, digits=3, orient=tk.HORIZONTAL, command=self.change_shoulder_height_variation_threshold, length=scale_length, label="Shoulder Height Difference Threshold (%)")
-        self.scale_shoulder_height_variation_threshold.set(self.shoulder_height_variation_threshold*100)
-        self.neck_widgets.append(self.scale_shoulder_height_variation_threshold)
-        self.all_widgets["Shoulder Height Difference Threshold (%)"] = self.scale_shoulder_height_variation_threshold
-        
         self.scale_shoulder_hip_ratio_threshold = tk.Scale(self.window, from_=0, to=1, resolution=0.01, digits=3, orient=tk.HORIZONTAL, command=self.change_shoulder_hip_ratio_threshold, length=scale_length, label="Shoulder Hip Ratio Threshold")
         self.scale_shoulder_hip_ratio_threshold.set(self.shoulder_hip_ratio_threshold)
         self.neck_widgets.append(self.scale_shoulder_hip_ratio_threshold)
         self.all_widgets["Shoulder Hip Ratio Threshold"] = self.change_shoulder_hip_ratio_threshold
         
+        self.scale_shoulder_height_variation_threshold = tk.Scale(self.window, from_=0, to=5, resolution=0.05, digits=3, orient=tk.HORIZONTAL, command=self.change_shoulder_height_variation_threshold, length=scale_length, label="Shoulder Height Difference Threshold (%)")
+        self.scale_shoulder_height_variation_threshold.set(self.shoulder_height_variation_threshold*100)
+        self.neck_widgets.append(self.scale_shoulder_height_variation_threshold)
+        self.all_widgets["Shoulder Height Difference Threshold (%)"] = self.scale_shoulder_height_variation_threshold
 
         clicked = tk.StringVar()
         
@@ -274,7 +273,7 @@ class MyVideoCapture:
                 shoulder_hip_ratio_threshold=shoulder_hip_ratio_threshold,
                 put_orientation_text=put_orientation_text)     
             
-            self.detector.detect_orientation_2(shoulder_hip_ratio_threshold=shoulder_hip_ratio_threshold)
+            # self.detector.detect_orientation_2(shoulder_hip_ratio_threshold=shoulder_hip_ratio_threshold)
 
 
             if good_posture:
@@ -304,8 +303,8 @@ class MyVideoCapture:
 # Create a window and pass it to the Application object
 if __name__ == "__main__":
     settings = {
-        # "video_source" : 0,
-        "video_source" : "video_samples/2.mp4",
+        "video_source" : 0,
+        # "video_source" : "video_samples/2.mp4",
         "show_video" : True,
         "auto_detect_orientation" : True,
         "draw_all_landmarks" : False,
@@ -314,7 +313,7 @@ if __name__ == "__main__":
         "neck_ratio_threshold" : 0.65,
         "neck_angle_threshold" : 60,
         "shoulder_height_variation_threshold" : 0.018,
-        "shoulder_hip_ratio_threshold" : 0.25,
+        "shoulder_hip_ratio_threshold" : 0.45,
         "put_orientation_text" : True,
         "resize_image_width_to" : 500,
         "resize_image_height_to" : None,

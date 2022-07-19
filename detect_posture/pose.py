@@ -1,7 +1,6 @@
 import time
 import cv2
 import mediapipe as mp
-import matplotlib.pyplot as plt
 import numpy as np
 from .utils import get_angle, image_resize
 
@@ -208,13 +207,13 @@ class detectPose():
         else:
             return "side", round(diff*100,2)
 
-    def detect_orientation_2(self, shoulder_hip_variation_threshold):
+    def detect_orientation_2(self, shoulder_hip_ratio_threshold):
         if not self.landmarks:
             return
         
         ratio = self.shoulders_hips_ratio()
 
-        if ratio > shoulder_hip_variation_threshold:
+        if ratio > shoulder_hip_ratio_threshold:
             # for img in self.images():
             #     cv2.putText(img, "front"+str(round(ratio,2)), (0,25), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 2)
             return "front", round(ratio,3)
@@ -248,7 +247,7 @@ class detectPose():
 
     def neck_posture(self, color=(0,0,255), auto_detect_orientation=False, 
         shoulder_height_variation_threshold=0.018, 
-        shoulder_hip_variation_threshold=0.45,
+        shoulder_hip_ratio_threshold=0.45,
         neck_ratio_threshold=0.65, 
         neck_angle_threshold=40, put_orientation_text=False):
         """ 
@@ -283,8 +282,8 @@ class detectPose():
             three_d_angle = 180 - three_d_angle
 
         color=(0,255,0)
-        if shoulder_hip_variation_threshold is not None:
-            detected_orientation, diff = self.detect_orientation_2(shoulder_hip_variation_threshold)
+        if shoulder_hip_ratio_threshold is not None:
+            detected_orientation, diff = self.detect_orientation_2(shoulder_hip_ratio_threshold)
         else:
             detected_orientation, diff = self.detect_orientation(shoulder_height_variation_threshold)
 
@@ -310,7 +309,7 @@ class detectPose():
                     good_posture = False
                     color = (255,0,0)
                 for img in self.images():
-                    cv2.putText(img, "angle: "+str(two_d_angle), 
+                    cv2.putText(img, "angle: "+str(round(two_d_angle,2)), 
                         (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h+20)), 
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
             
@@ -382,7 +381,7 @@ def main():
             put_orientation_text=True
             ) 
         
-        detector.detect_orientation_2(shoulder_hip_variation_threshold=0.45)
+        detector.detect_orientation_2(shoulder_hip_ratio_threshold=0.45)
 
         if good_posture:
             time_bad_posture = 0
