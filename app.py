@@ -24,6 +24,7 @@ class App:
             resize_image_height_to=None,
             time_bad_posture_alert=5,
             show_fps=True,
+            mirror_mode=True
             ):
 
         self.window = window
@@ -44,6 +45,7 @@ class App:
         self.resize_image_height_to = resize_image_height_to
         self.time_bad_posture_alert = time_bad_posture_alert
         self.show_fps = show_fps
+        self.mirror_mode = mirror_mode
 
         self.kwargs_frame = {
             "show_video" : self.show_video,
@@ -60,6 +62,7 @@ class App:
             "resize_image_height_to" : self.resize_image_height_to,
             "time_bad_posture_alert" : self.time_bad_posture_alert,
             "show_fps" : self.show_fps,
+            "mirror_mode" : self.mirror_mode
         }
         self.kwargs_other = {
             "video_source" : self.video_source,
@@ -252,6 +255,7 @@ class MyVideoCapture:
         resize_image_height_to=None,
         time_bad_posture_alert=5,
         show_fps=True,
+        mirror_mode=True
         ):
         if self.cap.isOpened():
             ret, image = self.cap.read()
@@ -263,9 +267,15 @@ class MyVideoCapture:
             # when false, avoid unnecessary computation
             self.detector.show_video_image = show_video 
 
-            self.detector.set_images(image, 
+            if mirror_mode:
+                self.detector.set_images(cv2.flip(image, 1), 
+                    resize_image_width_to=resize_image_width_to, 
+                    resize_image_height_to=resize_image_height_to)
+            else:
+                self.detector.set_images(image, 
                 resize_image_width_to=resize_image_width_to, 
                 resize_image_height_to=resize_image_height_to)
+            
 
             (self.detector.image).flags.writeable = False
             results = self.detector.pose.process(self.detector.image)
@@ -331,6 +341,7 @@ if __name__ == "__main__":
         "resize_image_height_to" : None,
         "time_bad_posture_alert" : 3,
         "show_fps" : False,
+        "mirror_mode" : True,
         }
 
     App(tk.Tk(), "Tkinter and OpenCV", **settings)
