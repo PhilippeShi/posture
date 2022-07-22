@@ -41,3 +41,9 @@ def get_angle(a:list, b:list, c:list, dimensions:int, decimals:int=2, less_than_
         deg_angle = 360 - deg_angle
 
     return round(deg_angle,decimals)
+
+def get_distance(a:list, b:list, dimensions:int=2):
+    a = np.array(a[:dimensions])
+    b = np.array(b[:dimensions])
+    return np.linalg.norm(a - b)
+    

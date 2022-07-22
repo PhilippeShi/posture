@@ -122,19 +122,18 @@ class App:
         self.neck_widgets.append(self.scale_shoulder_hip_ratio_threshold)
         self.all_widgets["Shoulder Hip Ratio Threshold"] = self.change_shoulder_hip_ratio_threshold
         
-        self.scale_shoulder_height_variation_threshold = tk.Scale(self.window, from_=0, to=5, resolution=0.05, digits=3, orient=tk.HORIZONTAL, command=self.change_shoulder_height_variation_threshold, length=scale_length, label="Shoulder Height Difference Threshold (%)")
-        self.scale_shoulder_height_variation_threshold.set(self.shoulder_height_variation_threshold*100)
-        self.neck_widgets.append(self.scale_shoulder_height_variation_threshold)
-        self.all_widgets["Shoulder Height Difference Threshold (%)"] = self.scale_shoulder_height_variation_threshold
+        # self.scale_shoulder_height_variation_threshold = tk.Scale(self.window, from_=0, to=5, resolution=0.05, digits=3, orient=tk.HORIZONTAL, command=self.change_shoulder_height_variation_threshold, length=scale_length, label="Shoulder Height Difference Threshold (%)")
+        # self.scale_shoulder_height_variation_threshold.set(self.shoulder_height_variation_threshold*100)
+        # self.neck_widgets.append(self.scale_shoulder_height_variation_threshold)
+        # self.all_widgets["Shoulder Height Difference Threshold (%)"] = self.scale_shoulder_height_variation_threshold
 
         clicked = tk.StringVar()
         
-        self.menu = tk.OptionMenu(self.window, clicked, *self.all_widgets.keys())
+        self.menu = tk.OptionMenu(self.window, clicked, *self.all_widgets.keys(), command=self.option_changed)
         self.shown_widgets.append(self.menu)
-        # self.initialize(self.all_widgets)
+
         self.initialize(self.shown_widgets)
         self.neck_widgets_shown = False
-        # self.neck_settings()
 
         # # After it is called once, the update method will be automatically called every delay milliseconds
         self.delay = 15
@@ -148,6 +147,19 @@ class App:
     def forget_all(self, widgets):
         for widget in widgets:
             widget.pack_forget()
+
+    def option_changed(self, option):
+        # use match-case instead of if-statements for python 3.10 and above
+        # I am currently using python 3.9.5
+        if option == "Neck Settings":
+            self.neck_settings()
+        if option == "Show Video":
+            self.toggle_show_video()
+        if option == "Auto Detect":
+            self.toggle_auto_detect_orientation()
+        if option == "Save Settings":
+            self.save_settings()
+        
 
     def save_settings(self):
         d = self.kwargs_frame.copy()

@@ -188,6 +188,8 @@ class detectPose():
         """
         Detects a subject's orientation to the camera. Uses the percentage 
         difference between the shoulders' heights (y-coordinates).
+
+        CURRENTLY NOT IN USE, see detect_orientation_2
         """
         if not self.landmarks:
             return
@@ -261,23 +263,35 @@ class detectPose():
         R_E = self.lmrk_d['RIGHT_EAR'] #8
 
         a = [self.landmarks[R_S].x, self.landmarks[R_S].y, self.landmarks[R_S].z]
+        a_left = [self.landmarks[L_S].x, self.landmarks[L_S].y, self.landmarks[L_S].z]
         
+        # point between shoulders
         b = [(self.landmarks[R_S].x+self.landmarks[L_S].x)/2,
             (self.landmarks[R_S].y+self.landmarks[L_S].y)/2,
             (self.landmarks[R_S].z+self.landmarks[L_S].z)/2]
 
+        # point between ears
         c = [(self.landmarks[R_E].x+self.landmarks[L_E].x)/2,
             (self.landmarks[R_E].y+self.landmarks[L_E].y)/2,
             (self.landmarks[R_E].z+self.landmarks[L_E].z)/2]
 
+        # TODO miror image to get the correct orientation (left-right)
         h,w,_ = (self.image).shape
         three_d_angle = get_angle(a,b,c,3)
-        two_d_angle = get_angle(a,b,c,2) #2d angle
+
+        left_length = np.linalg.norm(np.array(a)-np.array(c))
+        right_length = np.linalg.norm(np.array(a_left)-np.array(c))
+
+        if left_length < right_length:
+            two_d_angle = get_angle(a_left,b,c,2)
+        else:
+            two_d_angle = get_angle(a,b,c,2)
+
+
         ratio = self.neck_shoulders_ratio()
 
         if two_d_angle > 90:
             two_d_angle = 180 - two_d_angle
-
         if three_d_angle > 90:
             three_d_angle = 180 - three_d_angle
 
