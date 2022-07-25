@@ -266,15 +266,14 @@ class MyVideoCapture:
 
             # when false, avoid unnecessary computation
             self.detector.show_video_image = show_video 
+            
 
             if mirror_mode:
-                self.detector.set_images(cv2.flip(image, 1), 
-                    resize_image_width_to=resize_image_width_to, 
-                    resize_image_height_to=resize_image_height_to)
-            else:
-                self.detector.set_images(image, 
-                resize_image_width_to=resize_image_width_to, 
-                resize_image_height_to=resize_image_height_to)
+                image = cv2.flip(image, 1) 
+            
+            self.detector.set_images(image, 
+            resize_image_width_to=resize_image_width_to, 
+            resize_image_height_to=resize_image_height_to)
             
 
             (self.detector.image).flags.writeable = False
@@ -325,7 +324,7 @@ class MyVideoCapture:
 # Create a window and pass it to the Application object
 if __name__ == "__main__":
     settings = {
-        "video_source" : 0,
+        "video_source" : 1,
         # "video_source" : "video_samples/2.mp4",
         "show_video" : True,
         "auto_detect_orientation" : True,
