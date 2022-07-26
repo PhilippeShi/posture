@@ -6,6 +6,7 @@ from detect_posture.pose import detectPose
 from detect_posture.utils import image_resize
 import os
 import json
+from network import client
 
 class App:
     def __init__(self, window, window_title,
@@ -69,7 +70,7 @@ class App:
         }
 
         self.cap = MyVideoCapture(self.video_source, show_video)
-        
+
         self.all_widgets = {}
         self.neck_widgets = []
         self.shown_widgets = []
@@ -239,6 +240,7 @@ class MyVideoCapture:
         self.detector = detectPose(show_video_image=self.show_video)
         self.prev_time = time.time()
         self.time_bad_posture = 0
+        self.client = client.Client()
 
     def get_frame(self,
         show_video=False,
@@ -296,7 +298,6 @@ class MyVideoCapture:
             
             # self.detector.detect_orientation_2(shoulder_hip_ratio_threshold=shoulder_hip_ratio_threshold)
 
-
             if good_posture:
                 self.time_bad_posture = 0
 
@@ -307,6 +308,9 @@ class MyVideoCapture:
         
                     if self.time_bad_posture > time_bad_posture_alert:
                         cv2.putText(img, f"MORE THAN {int(self.time_bad_posture)}s!", (0,150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 3)
+                        if abs(int(time.time()%60) - int(self.prev_time%60)) >= 1:
+                        # if the difference in seconds between curr time and pre_time >= 1
+                            self.client.send(f"bad posture {int(self.time_bad_posture)}")
 
             if show_fps:
                 self.prev_time = self.detector.show_fps(self.prev_time)
@@ -318,6 +322,7 @@ class MyVideoCapture:
 
     # Release the video source when the object is destroyed
     def __del__(self):
+        self.client.close()
         if self.cap.isOpened():
             self.cap.release()
 
