@@ -4,7 +4,6 @@ import PIL.Image, PIL.ImageTk
 import time
 from detect_posture.pose import detectPose
 from detect_posture.utils import image_resize
-import os
 import json
 from network import client
 
@@ -25,13 +24,14 @@ class App:
             resize_image_height_to=None,
             time_bad_posture_alert=5,
             show_fps=True,
-            mirror_mode=True
+            mirror_mode=True,
+            alert_other_device=False,
+            ip_address=None,
             ):
 
         self.window = window
         self.window.title(window_title)
         
-        self.video_source = video_source
         self.show_video = show_video
         self.auto_detect_orientation = auto_detect_orientation
         self.draw_all_landmarks = draw_all_landmarks
@@ -63,13 +63,15 @@ class App:
             "resize_image_height_to" : self.resize_image_height_to,
             "time_bad_posture_alert" : self.time_bad_posture_alert,
             "show_fps" : self.show_fps,
-            "mirror_mode" : self.mirror_mode
+            "mirror_mode" : self.mirror_mode,
         }
         self.kwargs_other = {
-            "video_source" : self.video_source,
+            "video_source" : video_source,
+            "alert_other_device" : alert_other_device,
+            "ip_address" : ip_address,
         }
 
-        self.cap = MyVideoCapture(self.video_source, show_video)
+        self.cap = MyVideoCapture(video_source, show_video, alert_other_device, ip_address)
 
         self.all_widgets = {}
         self.neck_widgets = []
@@ -226,7 +228,7 @@ class App:
 
 
 class MyVideoCapture:
-    def __init__(self, video_source, show_video):
+    def __init__(self, video_source, show_video, alert_other_device=False, ip=None):
         # Open the video source
         self.cap = cv2.VideoCapture(video_source)
         self.show_video = show_video
@@ -240,7 +242,13 @@ class MyVideoCapture:
         self.detector = detectPose(show_video_image=self.show_video)
         self.prev_time = time.time()
         self.time_bad_posture = 0
-        self.client = client.Client()
+        self.alert_other_device = alert_other_device
+
+        if alert_other_device:
+            if ip is None:
+                self.client = client.Client()
+            else:
+                self.client = client.Client(ip)
 
     def get_frame(self,
         show_video=False,
@@ -300,17 +308,23 @@ class MyVideoCapture:
 
             if good_posture:
                 self.time_bad_posture = 0
+                if abs(int(time.time()%60) - int(self.prev_time%60)) >= 1:
+                    self.client.send(f"good posture {int(self.time_bad_posture)}")
 
             elif not good_posture:
                 self.time_bad_posture += time.time() - self.prev_time
                 for img in self.detector.images():
                     cv2.putText(img, "time bad posture: "+str(round(float(self.time_bad_posture),3)), (0,100), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
         
-                    if self.time_bad_posture > time_bad_posture_alert:
-                        cv2.putText(img, f"MORE THAN {int(self.time_bad_posture)}s!", (0,150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 3)
-                        if abs(int(time.time()%60) - int(self.prev_time%60)) >= 1:
+                if self.time_bad_posture > time_bad_posture_alert:
+                    cv2.putText(img, f"MORE THAN {int(self.time_bad_posture)}s!", (0,150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 3)
+                    if self.alert_other_device and abs(int(time.time()%60) - int(self.prev_time%60)) >= 1:
                         # if the difference in seconds between curr time and pre_time >= 1
-                            self.client.send(f"bad posture {int(self.time_bad_posture)}")
+                        self.client.send(f"ALERT {int(self.time_bad_posture)}")
+                        # self.client.send_pickle(self.detector.image)
+                else:
+                    if self.alert_other_device and abs(int(time.time()%60) - int(self.prev_time%60)) >= 1:
+                        self.client.send(f"bad posture {int(self.time_bad_posture)}")
 
             if show_fps:
                 self.prev_time = self.detector.show_fps(self.prev_time)
@@ -343,9 +357,11 @@ if __name__ == "__main__":
         "put_orientation_text" : True,
         "resize_image_width_to" : 500,
         "resize_image_height_to" : None,
-        "time_bad_posture_alert" : 3,
+        "time_bad_posture_alert" : 1,
         "show_fps" : False,
         "mirror_mode" : True,
+        "alert_other_device": True,
+        "ip_address": None,
         }
 
     App(tk.Tk(), "Tkinter and OpenCV", **settings)
