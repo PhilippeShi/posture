@@ -243,7 +243,7 @@ class MyVideoCapture:
         self.prev_time = time.time()
         self.time_bad_posture = 0
         self.alert_other_device = alert_other_device
-
+        
         if alert_other_device:
             if ip is None:
                 self.client = client.Client()
@@ -308,7 +308,7 @@ class MyVideoCapture:
 
             if good_posture:
                 self.time_bad_posture = 0
-                if abs(int(time.time()%60) - int(self.prev_time%60)) >= 1:
+                if self.alert_other_device and abs(int(time.time()%60) - int(self.prev_time%60)) >= 1:
                     self.client.send(f"good posture {int(self.time_bad_posture)}")
 
             elif not good_posture:
@@ -317,7 +317,8 @@ class MyVideoCapture:
                     cv2.putText(img, "time bad posture: "+str(round(float(self.time_bad_posture),3)), (0,100), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
         
                 if self.time_bad_posture > time_bad_posture_alert:
-                    cv2.putText(img, f"MORE THAN {int(self.time_bad_posture)}s!", (0,150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 3)
+                    for img in self.detector.images():
+                        cv2.putText(img, f"MORE THAN {int(self.time_bad_posture)}s!", (0,150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 3)
                     if self.alert_other_device and abs(int(time.time()%60) - int(self.prev_time%60)) >= 1:
                         # if the difference in seconds between curr time and pre_time >= 1
                         self.client.send(f"ALERT {int(self.time_bad_posture)}")
@@ -336,7 +337,8 @@ class MyVideoCapture:
 
     # Release the video source when the object is destroyed
     def __del__(self):
-        self.client.close()
+        if self.alert_other_device:
+            self.client.close()
         if self.cap.isOpened():
             self.cap.release()
 
@@ -360,7 +362,7 @@ if __name__ == "__main__":
         "time_bad_posture_alert" : 1,
         "show_fps" : False,
         "mirror_mode" : True,
-        "alert_other_device": True,
+        "alert_other_device": False,
         "ip_address": None,
         }
 
