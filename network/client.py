@@ -1,6 +1,7 @@
 import socket
+import pickle
 
-HEADER = 64
+HEADER = 16
 PORT = 5050
 SERVER = socket.gethostbyname(socket.gethostname())
 ADDR = (SERVER, PORT)
@@ -9,9 +10,9 @@ DISCONNECT_MESSAGE = "!DISCONNECT"
 
 class Client:
 
-    def __init__(self):
+    def __init__(self, server=SERVER):
         self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.client.connect(ADDR)
+        self.client.connect((server, PORT))
 
     def send(self, msg):
         message = msg.encode(FORMAT)
@@ -20,15 +21,27 @@ class Client:
         send_length += b' ' * (HEADER - len(send_length)) # padding in byte format
         self.client.send(send_length)
         self.client.send(message)
-        print(self.client.recv(2048).decode(FORMAT))
+        print(self.client.recv(16).decode(FORMAT))
+    
+    
+    def send_pickle(self, obj):
+        '''Send a python object (picture of bad posture)
+        so that the server can view it.
+        
+        Currently not working'''
+        
+        msg = pickle.dumps(obj)
+        msg = bytes(f"{len(msg):<{HEADER}}", "utf-8") + msg
+        self.client.send(msg)
     
     def close(self):
         self.send(DISCONNECT_MESSAGE)
 
 if __name__ == "__main__":
     client = Client()
-    client.send("Hello World!")
     input()
-    client.send("MSG 2")
+    client.send("Hello World!")
+    # input()
+    # client.send_pickle({"name": "John", "age": 30})
     input()
     client.send(DISCONNECT_MESSAGE)
