@@ -1,7 +1,7 @@
 import socket
 import pickle
 
-HEADER = 16
+HEADER = 32
 PORT = 5050
 SERVER = socket.gethostbyname(socket.gethostname())
 ADDR = (SERVER, PORT)
@@ -21,7 +21,7 @@ class Client:
         send_length += b' ' * (HEADER - len(send_length)) # padding in byte format
         self.client.send(send_length)
         self.client.send(message)
-        print(self.client.recv(16).decode(FORMAT))
+        print(self.client.recv(HEADER).decode(FORMAT))
     
     
     def send_pickle(self, obj):

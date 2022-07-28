@@ -4,8 +4,10 @@ import PIL.Image, PIL.ImageTk
 import time
 from detect_posture.pose import detectPose
 from detect_posture.utils import image_resize
+from detect_posture.utils import sound_alert
 import json
 from network import client
+
 
 class App:
     def __init__(self, window, window_title,
@@ -25,6 +27,7 @@ class App:
             time_bad_posture_alert=5,
             show_fps=True,
             mirror_mode=True,
+            alert_sound=True,
             alert_other_device=False,
             ip_address=None,
             ):
@@ -45,6 +48,7 @@ class App:
         self.resize_image_width_to = resize_image_width_to
         self.resize_image_height_to = resize_image_height_to
         self.time_bad_posture_alert = time_bad_posture_alert
+        self.alert_sound = alert_sound
         self.show_fps = show_fps
         self.mirror_mode = mirror_mode
 
@@ -62,6 +66,7 @@ class App:
             "resize_image_width_to" : self.resize_image_width_to,
             "resize_image_height_to" : self.resize_image_height_to,
             "time_bad_posture_alert" : self.time_bad_posture_alert,
+            "alert_sound" : self.alert_sound,
             "show_fps" : self.show_fps,
             "mirror_mode" : self.mirror_mode,
         }
@@ -243,6 +248,7 @@ class MyVideoCapture:
         self.prev_time = time.time()
         self.time_bad_posture = 0
         self.alert_other_device = alert_other_device
+        self.sound_alert = sound_alert()
         
         if alert_other_device:
             if ip is None:
@@ -264,6 +270,7 @@ class MyVideoCapture:
         resize_image_width_to=None,
         resize_image_height_to=None,
         time_bad_posture_alert=5,
+        alert_sound=True,
         show_fps=True,
         mirror_mode=True
         ):
@@ -305,27 +312,41 @@ class MyVideoCapture:
                 put_orientation_text=put_orientation_text)     
             
             # self.detector.detect_orientation_2(shoulder_hip_ratio_threshold=shoulder_hip_ratio_threshold)
+            
+            send_msg = ""
+            
+            # every half-second
+            # if (time.time()%60%1) <= 0.6 and (time.time()%60%1) >= 0.5 and self.prev_time%60%1 <0.5:
+            #     print(self.prev_time%60%1, time.time()%60%1)
 
             if good_posture:
                 self.time_bad_posture = 0
-                if self.alert_other_device and abs(int(time.time()%60) - int(self.prev_time%60)) >= 1:
-                    self.client.send(f"good posture {int(self.time_bad_posture)}")
+                send_msg = "good posture"
 
             elif not good_posture:
                 self.time_bad_posture += time.time() - self.prev_time
                 for img in self.detector.images():
                     cv2.putText(img, "time bad posture: "+str(round(float(self.time_bad_posture),3)), (0,100), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
-        
+
                 if self.time_bad_posture > time_bad_posture_alert:
                     for img in self.detector.images():
                         cv2.putText(img, f"MORE THAN {int(self.time_bad_posture)}s!", (0,150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 3)
-                    if self.alert_other_device and abs(int(time.time()%60) - int(self.prev_time%60)) >= 1:
-                        # if the difference in seconds between curr time and pre_time >= 1
-                        self.client.send(f"ALERT {int(self.time_bad_posture)}")
-                        # self.client.send_pickle(self.detector.image)
+                    
+                    send_msg = "ALERT"
+                    
                 else:
-                    if self.alert_other_device and abs(int(time.time()%60) - int(self.prev_time%60)) >= 1:
-                        self.client.send(f"bad posture {int(self.time_bad_posture)}")
+                    send_msg = "bad posture"
+
+            # at every second or half-second:
+            if abs(int(time.time()%60) - int(self.prev_time%60)) >= 1 or ((time.time()%60%1) <= 0.6 and (time.time()%60%1) >= 0.5 and self.prev_time%60%1 <0.5): 
+                if self.alert_other_device:
+                    if alert_sound:
+                        self.client.send(f"{send_msg} {int(self.time_bad_posture)} sound")
+                    else:
+                        self.client.send(f"{send_msg} {int(self.time_bad_posture)}")
+
+                elif alert_sound:
+                    self.sound_alert.sound_alert(send_msg)
 
             if show_fps:
                 self.prev_time = self.detector.show_fps(self.prev_time)
@@ -359,10 +380,11 @@ if __name__ == "__main__":
         "put_orientation_text" : True,
         "resize_image_width_to" : 500,
         "resize_image_height_to" : None,
-        "time_bad_posture_alert" : 1,
+        "time_bad_posture_alert" : 2,
         "show_fps" : False,
         "mirror_mode" : True,
-        "alert_other_device": False,
+        "alert_other_device": True,
+        "alert_sound": True,
         "ip_address": None,
         }
 

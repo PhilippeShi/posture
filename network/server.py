@@ -1,8 +1,9 @@
 import socket
 import threading
 import winsound
+import os
 
-HEADER = 16
+HEADER = 32
 PORT = 5050
 SERVER = socket.gethostbyname(socket.gethostname())
 ADDR = (SERVER, PORT)
@@ -12,6 +13,8 @@ DISCONNECT_MESSAGE = "!DISCONNECT"
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.bind(ADDR)
 
+path = os.path.dirname(os.path.realpath(__file__))
+path = os.path.join(path, "beep.wav")
 
 def handle_client(conn, addr):
     print(f"[NEW CONNECTION] {addr} connected.")
@@ -26,12 +29,14 @@ def handle_client(conn, addr):
             if data == "quit" or data == DISCONNECT_MESSAGE:
                 connected = False
                 break
-            elif "ALERT" in data and prev=="good":
-                winsound.PlaySound("C:/Users/phili/Documents/GitHub/posturebiofeedback/network/beep.wav", winsound.SND_LOOP | winsound.SND_ASYNC)
-                prev="bad"
+            elif "sound" in data and "ALERT" in data and prev == "good":
+                winsound.PlaySound(path, winsound.SND_LOOP | winsound.SND_ASYNC)
+                prev = "bad"
+
             elif "good" in data:
-                prev="good"
+                prev = "good"
                 winsound.PlaySound(None, winsound.SND_PURGE)
+
             conn.send(data.encode(FORMAT))
                 
     conn.close()
@@ -49,5 +54,6 @@ def start():
 
 
 print("[STARTING] Server is starting...")
+print(os.path.dirname(os.path.realpath(__file__)))
 start()
 

@@ -1,4 +1,6 @@
 import numpy as np
+import winsound
+import os
 
 def image_resize(image_dim, width = None, height = None):
     """
@@ -46,4 +48,23 @@ def get_distance(a:list, b:list, dimensions:int=2):
     a = np.array(a[:dimensions])
     b = np.array(b[:dimensions])
     return np.linalg.norm(a - b)
-    
+
+class sound_alert:
+    def __init__(self):
+        self.prev = "good"
+        dir = os.path.dirname(os.path.realpath(__file__))
+        self.path = os.path.join(dir, "beep.wav")
+
+    def sound_alert(self, msg):
+        if "ALERT" in msg and self.prev == "good":
+            winsound.PlaySound(self.path, winsound.SND_LOOP | winsound.SND_ASYNC)
+            self.prev = "bad"
+
+        elif "good" in msg:
+            self.prev = "good"
+            winsound.PlaySound(None, winsound.SND_PURGE)
+
+if __name__ == "__main__":
+    d = sound_alert()
+    print(d.path)
+    d.sound_alert("ALERT")
