@@ -49,6 +49,9 @@ def get_distance(a:list, b:list, dimensions:int=2):
     b = np.array(b[:dimensions])
     return np.linalg.norm(a - b)
 
+def get_percent_difference(a:float, b:float):
+    return abs(a - b) / ((a + b)/2) * 100
+
 class sound_alert:
     def __init__(self):
         self.prev = "good"

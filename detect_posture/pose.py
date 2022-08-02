@@ -2,7 +2,7 @@ import time
 import cv2
 import mediapipe as mp
 import numpy as np
-from .utils import get_angle, image_resize
+from .utils import get_angle, image_resize, get_percent_difference
 
 class detectPose():
     def __init__(self, min_detection_confidence=0.5, min_tracking_confidence=0.5, show_video_image=True):
@@ -22,6 +22,8 @@ class detectPose():
         self.lmrk_d = dict()
         for id,lm in enumerate((self.mp_pose).PoseLandmark):
             self.lmrk_d[str(lm)[13::]] = id
+        
+        self.bad_postures = list()
 
     def set_images(self, image, resize_image_height_to=None, resize_image_width_to=None, resize_image_to=None):
         if resize_image_to:
@@ -345,7 +347,7 @@ class detectPose():
                     (int((self.landmarks[L_S].x+self.landmarks[R_S].x)*w/2), int(self.landmarks[L_S].y*h-20)), 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
                     
-        return good_posture
+        return good_posture, detected_orientation, ratio, two_d_angle, three_d_angle
 
     def neck_shoulders_ratio(self):
         L_S = self.lmrk_d['LEFT_SHOULDER'] #11
@@ -363,7 +365,24 @@ class detectPose():
         length_neck = np.linalg.norm(np.array(c)-np.array(d))
         return length_neck/length_shoulders
 
-
+    def set_bad_posture(self, neck_ratio, neck_angle):
+        if not self.landmarks:
+            return
+        
+        if not self.check_bad_posture(neck_ratio, neck_angle):
+            self.bad_postures.append((neck_ratio, neck_angle))
+            print("added bad posture")
+        else:
+            print("bad posture already exists")
+        
+    def check_bad_posture(self, neck_ratio, neck_angle, variation=0.1):
+        if not self.landmarks:
+            return
+        
+        for (r,a) in self.bad_postures:
+            if get_percent_difference(r, neck_ratio) < variation*100 and get_percent_difference(a, neck_angle) < variation*100:
+                return True
+        return False
 
 def main():
     detector = detectPose(show_video_image=True)

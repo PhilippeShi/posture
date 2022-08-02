@@ -2,6 +2,8 @@ import tkinter as tk
 import cv2
 import PIL.Image, PIL.ImageTk
 import time
+
+from numpy import add
 from detect_posture.pose import detectPose
 from detect_posture.utils import image_resize
 from detect_posture.utils import sound_alert
@@ -51,6 +53,7 @@ class App:
         self.alert_sound = alert_sound
         self.show_fps = show_fps
         self.mirror_mode = mirror_mode
+        self.add_bad_posture_flag = False
 
         self.kwargs_frame = {
             "show_video" : self.show_video,
@@ -69,6 +72,7 @@ class App:
             "alert_sound" : self.alert_sound,
             "show_fps" : self.show_fps,
             "mirror_mode" : self.mirror_mode,
+            "add_bad_posture_flag" : False,
         }
         self.kwargs_other = {
             "video_source" : video_source,
@@ -117,6 +121,10 @@ class App:
         self.scale_vis_threshold.set(int(self.vis_threshold*100))
         self.all_widgets["Visibility Threshold"] = self.scale_vis_threshold
         self.shown_widgets.append(self.scale_vis_threshold)
+
+        self.btn_add_bad_posture = tk.Button(self.window, text="Add Bad Posture", width=btn_width, command=self.add_bad_posture)
+        self.all_widgets["Add Bad Posture"] = self.btn_add_bad_posture
+        self.shown_widgets.append(self.btn_add_bad_posture)
         
         self.scale_neck_ratio_threshold = tk.Scale(self.window, from_=0, to=1, resolution=0.01, digits=3 ,orient=tk.HORIZONTAL, command=self.change_neck_ratio_threshold, length=scale_length, label="Neck/Shoulder Ratio Threshold")
         self.scale_neck_ratio_threshold.set(self.neck_ratio_threshold)
@@ -189,6 +197,8 @@ class App:
             for w in self.neck_widgets:
                 w.forget()
                 
+    def add_bad_posture(self):
+        self.kwargs_frame["add_bad_posture_flag"] = True
 
     def change_vis_threshold(self, value):
         self.kwargs_frame["vis_threshold"] = int(value)/100
@@ -222,7 +232,7 @@ class App:
     def update(self):
         # Get a frame from the video source
         ret, frame, frame2 = self.cap.get_frame(**self.kwargs_frame)
-
+        self.kwargs_frame["add_bad_posture_flag"] = False
         if ret:
             self.photo = PIL.ImageTk.PhotoImage(image = PIL.Image.fromarray(frame))
             self.photo2 = PIL.ImageTk.PhotoImage(image = PIL.Image.fromarray(frame2))
@@ -272,7 +282,8 @@ class MyVideoCapture:
         time_bad_posture_alert=5,
         alert_sound=True,
         show_fps=True,
-        mirror_mode=True
+        mirror_mode=True,
+        add_bad_posture_flag=False,
         ):
         if self.cap.isOpened():
             ret, image = self.cap.read()
@@ -303,16 +314,30 @@ class MyVideoCapture:
             if draw_all_landmarks:
                 self.detector.draw_all_landmarks(results)
 
-            good_posture = self.detector.neck_posture(
-                auto_detect_orientation=auto_detect_orientation,
-                neck_angle_threshold=neck_angle_threshold,
-                neck_ratio_threshold=neck_ratio_threshold,
-                shoulder_height_variation_threshold=shoulder_height_variation_threshold,
-                shoulder_hip_ratio_threshold=shoulder_hip_ratio_threshold,
-                put_orientation_text=put_orientation_text)     
+            good_posture, ratio, angle = True, 0, 0
+            try:
+                good_posture, _, ratio, angle, _ = self.detector.neck_posture(
+                    auto_detect_orientation=auto_detect_orientation,
+                    neck_angle_threshold=neck_angle_threshold,
+                    neck_ratio_threshold=neck_ratio_threshold,
+                    shoulder_height_variation_threshold=shoulder_height_variation_threshold,
+                    shoulder_hip_ratio_threshold=shoulder_hip_ratio_threshold,
+                    put_orientation_text=put_orientation_text,)     
+            except:
+                pass
             
-            # self.detector.detect_orientation_2(shoulder_hip_ratio_threshold=shoulder_hip_ratio_threshold)
-            
+            if good_posture is True:
+                good_posture = not self.detector.check_bad_posture(ratio, angle)
+                if good_posture is False:
+                    print("Bad posture detected from added posture")
+            else:
+                print("bad posture")
+            if good_posture:
+                print("GOOD")
+
+            if add_bad_posture_flag:
+                self.detector.set_bad_posture(ratio, angle)
+
             send_msg = ""
             
             # every half-second
@@ -366,7 +391,7 @@ class MyVideoCapture:
 # Create a window and pass it to the Application object
 if __name__ == "__main__":
     settings = {
-        "video_source" : 1,
+        "video_source" : 0,
         # "video_source" : "video_samples/2.mp4",
         "show_video" : True,
         "auto_detect_orientation" : True,
@@ -383,7 +408,7 @@ if __name__ == "__main__":
         "time_bad_posture_alert" : 2,
         "show_fps" : False,
         "mirror_mode" : True,
-        "alert_other_device": True,
+        "alert_other_device": False,
         "alert_sound": True,
         "ip_address": None,
         }
