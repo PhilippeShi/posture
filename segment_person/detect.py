@@ -4,8 +4,12 @@ import os
 
 # Load Yolo
 dir = os.path.dirname(os.path.realpath(__file__))
-weights = os.path.join(dir, "yolov3.weights")
-cfg = os.path.join(dir, "yolov3.cfg")
+# weights = os.path.join(dir, "yolov3.weights")
+# cfg = os.path.join(dir, "yolov3.cfg")
+# weights = os.path.join(dir, "yolov3-tiny.weights")
+# cfg = os.path.join(dir, "yolov3-tiny.cfg")
+weights = os.path.join(dir, "yolov2-tiny-voc.weights")
+cfg = os.path.join(dir, "yolov2-tiny-voc.cfg")
 names = os.path.join(dir, "coco.names")
 net = cv2.dnn.readNet(weights, cfg)
 classes = []
@@ -16,14 +20,15 @@ output_layers = [layer_names[i[0] - 1] for i in net.getUnconnectedOutLayers()]
 colors = np.random.uniform(0, 255, size=(len(classes), 3))
 
 # Loading image
-cap = cv2.VideoCapture(0)
-
+vid = os.path.join(dir, "1.mp4")
+cap = cv2.VideoCapture(1)
+count = 0
 while cap.isOpened():
     success, image = cap.read()
     if not success:
         print("End video. Ignoring empty camera frame.")
         # If loading a video, use 'break' instead of 'continue'.
-        break
+        continue
     
     
     # image = cv2.resize(image, None, fx=0.4, fy=0.4)
@@ -39,6 +44,8 @@ while cap.isOpened():
     class_ids = []
     confidences = []
     boxes = []
+    crops = []
+
     for out in outs:
         for detection in out:
             scores = detection[5:]
@@ -68,11 +75,17 @@ while cap.isOpened():
             # color = colors[i]
             color = (255, 255, 255)
             cv2.rectangle(image, (x, y), (x + w, y + h), color, 2)
+            crops.append(image[y:y+h, x:x+w])
             cv2.putText(image, label, (x, y + 30), font, 3, color, 3)
     cv2.imshow("Image", image)
-
+    for i, crop in enumerate(crops):
+        try:
+            cv2.imshow(f"Crop {i}", crop)
+        except:
+            pass
     if cv2.waitKey(10) & 0xFF == ord('q'):
         break
+    count += 1
 
 cap.release()
 cv2.destroyAllWindows()
