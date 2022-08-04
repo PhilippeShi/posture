@@ -2,10 +2,14 @@ import tkinter as tk
 import cv2
 import PIL.Image, PIL.ImageTk
 import time
+
+from numpy import add
 from detect_posture.pose import detectPose
 from detect_posture.utils import image_resize
-import os
+from detect_posture.utils import sound_alert
 import json
+from network import client
+
 
 class App:
     def __init__(self, window, window_title,
@@ -24,13 +28,15 @@ class App:
             resize_image_height_to=None,
             time_bad_posture_alert=5,
             show_fps=True,
-            mirror_mode=True
+            mirror_mode=True,
+            alert_sound=True,
+            alert_other_device=False,
+            ip_address=None,
             ):
 
         self.window = window
         self.window.title(window_title)
         
-        self.video_source = video_source
         self.show_video = show_video
         self.auto_detect_orientation = auto_detect_orientation
         self.draw_all_landmarks = draw_all_landmarks
@@ -44,8 +50,10 @@ class App:
         self.resize_image_width_to = resize_image_width_to
         self.resize_image_height_to = resize_image_height_to
         self.time_bad_posture_alert = time_bad_posture_alert
+        self.alert_sound = alert_sound
         self.show_fps = show_fps
         self.mirror_mode = mirror_mode
+        self.add_bad_posture_flag = False
 
         self.kwargs_frame = {
             "show_video" : self.show_video,
@@ -61,15 +69,19 @@ class App:
             "resize_image_width_to" : self.resize_image_width_to,
             "resize_image_height_to" : self.resize_image_height_to,
             "time_bad_posture_alert" : self.time_bad_posture_alert,
+            "alert_sound" : self.alert_sound,
             "show_fps" : self.show_fps,
-            "mirror_mode" : self.mirror_mode
+            "mirror_mode" : self.mirror_mode,
+            "add_bad_posture_flag" : False,
         }
         self.kwargs_other = {
-            "video_source" : self.video_source,
+            "video_source" : video_source,
+            "alert_other_device" : alert_other_device,
+            "ip_address" : ip_address,
         }
 
-        self.cap = MyVideoCapture(self.video_source, show_video)
-        
+        self.cap = MyVideoCapture(video_source, show_video, alert_other_device, ip_address)
+
         self.all_widgets = {}
         self.neck_widgets = []
         self.shown_widgets = []
@@ -109,6 +121,10 @@ class App:
         self.scale_vis_threshold.set(int(self.vis_threshold*100))
         self.all_widgets["Visibility Threshold"] = self.scale_vis_threshold
         self.shown_widgets.append(self.scale_vis_threshold)
+
+        self.btn_add_bad_posture = tk.Button(self.window, text="Add Bad Posture", width=btn_width, command=self.add_bad_posture)
+        self.all_widgets["Add Bad Posture"] = self.btn_add_bad_posture
+        self.shown_widgets.append(self.btn_add_bad_posture)
         
         self.scale_neck_ratio_threshold = tk.Scale(self.window, from_=0, to=1, resolution=0.01, digits=3 ,orient=tk.HORIZONTAL, command=self.change_neck_ratio_threshold, length=scale_length, label="Neck/Shoulder Ratio Threshold")
         self.scale_neck_ratio_threshold.set(self.neck_ratio_threshold)
@@ -181,6 +197,8 @@ class App:
             for w in self.neck_widgets:
                 w.forget()
                 
+    def add_bad_posture(self):
+        self.kwargs_frame["add_bad_posture_flag"] = True
 
     def change_vis_threshold(self, value):
         self.kwargs_frame["vis_threshold"] = int(value)/100
@@ -214,7 +232,7 @@ class App:
     def update(self):
         # Get a frame from the video source
         ret, frame, frame2 = self.cap.get_frame(**self.kwargs_frame)
-
+        self.kwargs_frame["add_bad_posture_flag"] = False
         if ret:
             self.photo = PIL.ImageTk.PhotoImage(image = PIL.Image.fromarray(frame))
             self.photo2 = PIL.ImageTk.PhotoImage(image = PIL.Image.fromarray(frame2))
@@ -225,7 +243,7 @@ class App:
 
 
 class MyVideoCapture:
-    def __init__(self, video_source, show_video):
+    def __init__(self, video_source, show_video, alert_other_device=False, ip=None):
         # Open the video source
         self.cap = cv2.VideoCapture(video_source)
         self.show_video = show_video
@@ -239,6 +257,14 @@ class MyVideoCapture:
         self.detector = detectPose(show_video_image=self.show_video)
         self.prev_time = time.time()
         self.time_bad_posture = 0
+        self.alert_other_device = alert_other_device
+        self.sound_alert = sound_alert()
+        
+        if alert_other_device:
+            if ip is None:
+                self.client = client.Client()
+            else:
+                self.client = client.Client(ip)
 
     def get_frame(self,
         show_video=False,
@@ -254,8 +280,10 @@ class MyVideoCapture:
         resize_image_width_to=None,
         resize_image_height_to=None,
         time_bad_posture_alert=5,
+        alert_sound=True,
         show_fps=True,
-        mirror_mode=True
+        mirror_mode=True,
+        add_bad_posture_flag=False,
         ):
         if self.cap.isOpened():
             ret, image = self.cap.read()
@@ -286,27 +314,64 @@ class MyVideoCapture:
             if draw_all_landmarks:
                 self.detector.draw_all_landmarks(results)
 
-            good_posture = self.detector.neck_posture(
-                auto_detect_orientation=auto_detect_orientation,
-                neck_angle_threshold=neck_angle_threshold,
-                neck_ratio_threshold=neck_ratio_threshold,
-                shoulder_height_variation_threshold=shoulder_height_variation_threshold,
-                shoulder_hip_ratio_threshold=shoulder_hip_ratio_threshold,
-                put_orientation_text=put_orientation_text)     
+            good_posture, ratio, angle = True, 0, 0
+            try:
+                good_posture, _, ratio, angle, _ = self.detector.neck_posture(
+                    auto_detect_orientation=auto_detect_orientation,
+                    neck_angle_threshold=neck_angle_threshold,
+                    neck_ratio_threshold=neck_ratio_threshold,
+                    shoulder_height_variation_threshold=shoulder_height_variation_threshold,
+                    shoulder_hip_ratio_threshold=shoulder_hip_ratio_threshold,
+                    put_orientation_text=put_orientation_text,)     
+            except:
+                pass
             
-            # self.detector.detect_orientation_2(shoulder_hip_ratio_threshold=shoulder_hip_ratio_threshold)
+            if good_posture is True:
+                good_posture = not self.detector.check_bad_posture(ratio, angle)
+                if good_posture is False:
+                    print("Bad posture detected from added posture")
+            else:
+                print("bad posture")
+            if good_posture:
+                print("GOOD")
 
+            if add_bad_posture_flag:
+                self.detector.set_bad_posture(ratio, angle)
+
+            send_msg = ""
+            
+            # every half-second
+            # if (time.time()%60%1) <= 0.6 and (time.time()%60%1) >= 0.5 and self.prev_time%60%1 <0.5:
+            #     print(self.prev_time%60%1, time.time()%60%1)
 
             if good_posture:
                 self.time_bad_posture = 0
+                send_msg = "good posture"
 
             elif not good_posture:
                 self.time_bad_posture += time.time() - self.prev_time
                 for img in self.detector.images():
                     cv2.putText(img, "time bad posture: "+str(round(float(self.time_bad_posture),3)), (0,100), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
-        
-                    if self.time_bad_posture > time_bad_posture_alert:
+
+                if self.time_bad_posture > time_bad_posture_alert:
+                    for img in self.detector.images():
                         cv2.putText(img, f"MORE THAN {int(self.time_bad_posture)}s!", (0,150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 3)
+                    
+                    send_msg = "ALERT"
+                    
+                else:
+                    send_msg = "bad posture"
+
+            # at every second or half-second:
+            if abs(int(time.time()%60) - int(self.prev_time%60)) >= 1 or ((time.time()%60%1) <= 0.6 and (time.time()%60%1) >= 0.5 and self.prev_time%60%1 <0.5): 
+                if self.alert_other_device:
+                    if alert_sound:
+                        self.client.send(f"{send_msg} {int(self.time_bad_posture)} sound")
+                    else:
+                        self.client.send(f"{send_msg} {int(self.time_bad_posture)}")
+
+                elif alert_sound:
+                    self.sound_alert.sound_alert(send_msg)
 
             if show_fps:
                 self.prev_time = self.detector.show_fps(self.prev_time)
@@ -318,13 +383,15 @@ class MyVideoCapture:
 
     # Release the video source when the object is destroyed
     def __del__(self):
+        if self.alert_other_device:
+            self.client.close()
         if self.cap.isOpened():
             self.cap.release()
 
 # Create a window and pass it to the Application object
 if __name__ == "__main__":
     settings = {
-        "video_source" : 1,
+        "video_source" : 0,
         # "video_source" : "video_samples/2.mp4",
         "show_video" : True,
         "auto_detect_orientation" : True,
@@ -338,9 +405,12 @@ if __name__ == "__main__":
         "put_orientation_text" : True,
         "resize_image_width_to" : 500,
         "resize_image_height_to" : None,
-        "time_bad_posture_alert" : 3,
+        "time_bad_posture_alert" : 2,
         "show_fps" : False,
         "mirror_mode" : True,
+        "alert_other_device": False,
+        "alert_sound": True,
+        "ip_address": None,
         }
 
     App(tk.Tk(), "Tkinter and OpenCV", **settings)
