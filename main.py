@@ -13,7 +13,8 @@ def main():
         f.close()
     except:
         settings = {
-            "video_source" : 0,
+            "video_source" : 1,
+            # "video_source" : "video_samples/4.mp4",
             "show_video" : True,
             "auto_detect_orientation" : True,
             "draw_all_landmarks" : False,
@@ -24,11 +25,15 @@ def main():
             "shoulder_height_variation_threshold" : 0.018,
             "shoulder_hip_ratio_threshold" : 0.45,
             "put_orientation_text" : True,
-            "resize_image_width_to" : 300,
+            "resize_image_width_to" : 500,
             "resize_image_height_to" : None,
-            "time_bad_posture_alert" : 3,
+            "time_bad_posture_alert" : 2,
             "show_fps" : False,
-            }
+            "mirror_mode" : True,
+            "alert_other_device": False,
+            "alert_sound": True,
+            "ip_address": None,
+        }
 
         with open('settings.json', 'w') as f:
             json.dump(settings, f)

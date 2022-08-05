@@ -391,8 +391,8 @@ class MyVideoCapture:
 # Create a window and pass it to the Application object
 if __name__ == "__main__":
     settings = {
-        "video_source" : 0,
-        # "video_source" : "video_samples/2.mp4",
+        "video_source" : 1,
+        # "video_source" : "video_samples/4.mp4",
         "show_video" : True,
         "auto_detect_orientation" : True,
         "draw_all_landmarks" : False,
@@ -403,7 +403,7 @@ if __name__ == "__main__":
         "shoulder_height_variation_threshold" : 0.018,
         "shoulder_hip_ratio_threshold" : 0.45,
         "put_orientation_text" : True,
-        "resize_image_width_to" : 500,
+        "resize_image_width_to" : 600,
         "resize_image_height_to" : None,
         "time_bad_posture_alert" : 2,
         "show_fps" : False,

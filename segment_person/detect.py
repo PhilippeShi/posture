@@ -30,6 +30,7 @@ colors = np.random.uniform(0, 255, size=(len(classes), 3))
 
 # Loading image
 vid = os.path.join(dir, "1.mp4")
+vid = ("C:/Users/phili/Documents/GitHub/posturebiofeedback/video_samples/4.mp4")
 cap = cv2.VideoCapture(1)
 
 while cap.isOpened():
@@ -42,6 +43,18 @@ while cap.isOpened():
     # image = cv2.resize(image, None, fx=0.4, fy=0.4)
     height, width, channels = image.shape
 
+    image.flags.writeable = False
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    results = pose.process(image)
+
+    # Draw the pose annotation on the image.
+    image.flags.writeable = True
+    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+    mp_drawing.draw_landmarks(
+        image,
+        results.pose_landmarks,
+        mp_pose.POSE_CONNECTIONS,
+        landmark_drawing_spec=mp_drawing_styles.get_default_pose_landmarks_style())
 
     # Detecting objects
     blob = cv2.dnn.blobFromImage(image, 0.00392, (416, 416), (0, 0, 0), True, crop=False)
@@ -77,7 +90,7 @@ while cap.isOpened():
     indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.5, 0.4)
     font = cv2.FONT_HERSHEY_PLAIN
     for i in range(len(boxes)):
-        # class_id[i] == 14 is person
+        # class_id[i] == 14 is person for yolov2-tiny
         if i in indexes and class_ids[i] == 14:
             x, y, w, h = boxes[i]
             # label = str(classes[class_ids[i]])
