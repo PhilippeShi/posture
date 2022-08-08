@@ -1,6 +1,7 @@
 import numpy as np
 import winsound
 import os
+import cv2
 
 def image_resize(image_dim, width = None, height = None):
     """
@@ -51,6 +52,29 @@ def get_distance(a:list, b:list, dimensions:int=2):
 
 def get_percent_difference(a:float, b:float):
     return abs(a - b) / ((a + b)/2) * 100
+
+def track_person(image, landmarks):
+    if not landmarks:
+        return image, None
+    x2, y2 = 0, 0
+    x1, y1 = image.shape[1], image.shape[0]
+    h, w, _ = image.shape
+    for count, lm in enumerate(landmarks):
+        x1 = min(x1, lm.x*w)
+        y1 = min(y1, lm.y*h)
+        x2 = max(x2, lm.x*w)
+        y2 = max(y2, lm.y*h)
+    x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+    x1, y1 = max(x1, 0), max(y1, 0)
+    x2, y2 = min(x2, w), min(y2, h)
+    if (x1, y1, x2, y2) == (0, 0, w, h):
+        return image, None
+    return image[y1:y2, x1:x2], (x1, y1, x2, y2)
+
+def overlay_image(og_img, ol_img, x, y):
+    image = og_img.copy()
+    image[y:y+ol_img.shape[0], x:x+ol_img.shape[1]] = ol_img
+    return image
 
 class sound_alert:
     def __init__(self):

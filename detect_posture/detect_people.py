@@ -58,6 +58,9 @@ class detect_people:
         for i in range(len(boxes)):
             # class_id[i] == 14 is person for yolov2-tiny
             if i in indexes and class_ids[i] == 14:
+                # TODO check if detected landmarks are in the box
+                # if so, then ignore that detected person
+                
                 x, y, w, h = boxes[i]
                 # label = str(classes[class_ids[i]])
                 # color = colors[i]

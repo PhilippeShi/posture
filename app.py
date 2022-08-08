@@ -9,7 +9,7 @@ from detect_posture.utils import image_resize
 from detect_posture.utils import sound_alert
 import json
 from network import client
-
+import mediapipe as mp
 
 class App:
     def __init__(self, window, window_title,
@@ -259,6 +259,7 @@ class MyVideoCapture:
         self.time_bad_posture = 0
         self.alert_other_device = alert_other_device
         self.sound_alert = sound_alert()
+        self.detector2 = detectPose(show_video_image=self.show_video)
         
         if alert_other_device:
             if ip is None:
@@ -304,15 +305,23 @@ class MyVideoCapture:
             resize_image_height_to=resize_image_height_to)
             
 
-            (self.detector.image).flags.writeable = False
             results = self.detector.pose.process(self.detector.image)
-            # Draw the pose annotation on the self.image
-            (self.detector.image).flags.writeable = True
-
             self.detector.process_landmarks(results, draw=draw_pose_landmarks, vis_threshold=vis_threshold)
-
+            self.detector.blur_person()
             if draw_all_landmarks:
                 self.detector.draw_all_landmarks(results)
+
+            self.detector2.set_images(self.detector.image)
+            results2 = self.detector2.pose.process(self.detector2.image)
+            self.detector2.process_landmarks(results2, draw=draw_all_landmarks, vis_threshold=vis_threshold)
+            self.detector2.blur_person()
+
+
+
+            if draw_all_landmarks:
+                self.detector2.draw_all_landmarks(results2)
+
+            cv2.imshow("image", self.detector2.image)
 
             good_posture, ratio, angle = True, 0, 0
             try:
@@ -330,10 +339,10 @@ class MyVideoCapture:
                 good_posture = not self.detector.check_bad_posture(ratio, angle)
                 if good_posture is False:
                     print("Bad posture detected from added posture")
-            else:
-                print("bad posture")
-            if good_posture:
-                print("GOOD")
+            # else:
+            #     print("bad posture")
+            # if good_posture:
+            #     print("GOOD")
 
             if add_bad_posture_flag:
                 self.detector.set_bad_posture(ratio, angle)
@@ -379,7 +388,7 @@ class MyVideoCapture:
                 self.prev_time = time.time()
 
             return (ret, cv2.cvtColor(self.detector.blank_image, cv2.COLOR_BGR2RGB), 
-            cv2.cvtColor(self.detector.image, cv2.COLOR_BGR2RGB))
+            cv2.cvtColor(self.detector2.image, cv2.COLOR_BGR2RGB))
 
     # Release the video source when the object is destroyed
     def __del__(self):
@@ -395,7 +404,7 @@ if __name__ == "__main__":
         # "video_source" : "video_samples/4.mp4",
         "show_video" : True,
         "auto_detect_orientation" : True,
-        "draw_all_landmarks" : False,
+        "draw_all_landmarks" : True,
         "draw_pose_landmarks" : True,
         "vis_threshold" : 0.7,
         "neck_ratio_threshold" : 0.65,

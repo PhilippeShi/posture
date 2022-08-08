@@ -2,7 +2,7 @@ import time
 import cv2
 import mediapipe as mp
 import numpy as np
-from .utils import get_angle, image_resize, get_percent_difference
+from .utils import get_angle, image_resize, get_percent_difference, track_person, overlay_image
 
 class detectPose():
     def __init__(self, min_detection_confidence=0.5, min_tracking_confidence=0.5, show_video_image=True):
@@ -74,7 +74,36 @@ class detectPose():
         """
         for count, img in enumerate(self.images()):
             cv2.imshow("Image "+str(count+1), img)
+ 
+    def change_subject(self):
+        if not self.landmarks:
+            return
+        person, coords = track_person(self.image, self.landmarks)
+        person_blurred = cv2.blur(person, (1000,1000))
+        self.image = overlay_image(self.image.copy(), person_blurred, coords[0], coords[1])
+        self.prev_blurred_coords = coords
+    
+    def blur_all_except_person(self):
+        if self.landmarks is None:
+            return
+        
+        person, coords = track_person(self.image, self.landmarks)
+        self.image = cv2.blur(self.image.copy(), (1000,1000))
+        self.image = overlay_image(self.image.copy(), person, coords[0], coords[1])
+        cv2.imshow("Image", self.image)
 
+    def blur_person(self):
+        if not self.landmarks:
+            return
+        
+        person, coords = track_person(self.image, self.landmarks)
+        blurred_person = cv2.blur(person.copy(), (1000,1000))
+        try:
+            self.image = overlay_image(self.image.copy(), blurred_person, coords[0], coords[1])
+            cv2.imshow("Image", self.image)
+        except:
+            pass
+        
     def process_landmarks(self, results, color=(0,0,255), thickness=2, draw=True, vis_threshold=0.5):
         """
         Sets self.lamndmarks if the results are valid
@@ -88,7 +117,6 @@ class detectPose():
         
         if not draw:
             return
-    
         if self.landmarks:
             h,w,_ =(self.image).shape
             L_S = self.lmrk_d['LEFT_SHOULDER'] #11

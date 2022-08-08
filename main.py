@@ -7,14 +7,14 @@ def main():
     # print(type(sys.argv[1]))
 
     try:
-        f=open("settings.json","r")
+        f=open("settingss.json","r")
         settings=json.load(f)
         print(settings)
         f.close()
     except:
         settings = {
-            "video_source" : 1,
-            # "video_source" : "video_samples/4.mp4",
+            # "video_source" : 1,
+            "video_source" : "video_samples/1.mp4",
             "show_video" : True,
             "auto_detect_orientation" : True,
             "draw_all_landmarks" : False,
