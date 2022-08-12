@@ -1,7 +1,7 @@
 import numpy as np
 import winsound
 import os
-import cv2
+import time
 
 def image_resize(image_dim, width = None, height = None):
     """
@@ -90,6 +90,18 @@ class sound_alert:
         elif "good" in msg:
             self.prev = "good"
             winsound.PlaySound(None, winsound.SND_PURGE)
+
+class fps_counter:
+    def __init__(self):
+        self.prev_time = time.time()
+        self.curr_time = time.time()
+        self.fps = 0
+
+    def update(self):
+        self.curr_time = time.time()
+        self.fps = 1 / (self.curr_time - self.prev_time)
+        self.prev_time = self.curr_time
+        return round(self.fps,1)
 
 if __name__ == "__main__":
     d = sound_alert()

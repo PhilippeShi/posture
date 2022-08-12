@@ -1,5 +1,7 @@
 import cv2
 import mediapipe as mp
+from utils import fps_counter
+
 mp_face_detection = mp.solutions.face_detection
 mp_drawing = mp.solutions.drawing_utils
 
@@ -24,10 +26,13 @@ mp_drawing = mp.solutions.drawing_utils
 #     cv2.imwrite('/tmp/annotated_image' + str(idx) + '.png', annotated_image)
 
 # For webcam input:
-# cap = cv2.VideoCapture(1)
-cap = cv2.VideoCapture('C:/Users/phili/Documents/GitHub/posturebiofeedback/video_samples/7.mp4')
+cap = cv2.VideoCapture(0)
+# cap = cv2.VideoCapture('C:/Users/phili/Documents/GitHub/posturebiofeedback/video_samples/7.mp4')
 with mp_face_detection.FaceDetection(
     model_selection=1, min_detection_confidence=0.5) as face_detection:
+  
+  fps_counter = fps_counter()
+  
   while cap.isOpened():
     success, image = cap.read()
     if not success:
@@ -44,6 +49,8 @@ with mp_face_detection.FaceDetection(
     # Draw the face detection annotations on the image.
     image.flags.writeable = True
     image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+    cv2.putText(image, str(fps_counter.update()), (0, 50),
+                cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 3)
     if results.detections:
       cv2.putText(image, str(len(results.detections)), (250, 150),
                   cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 3)

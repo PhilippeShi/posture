@@ -3,12 +3,11 @@ import cv2
 import PIL.Image, PIL.ImageTk
 import time
 
-from numpy import add
 from detect_posture.pose import detectPose
 from detect_posture.utils import image_resize
 from detect_posture.utils import sound_alert
-import json
 from network import client
+import json
 import mediapipe as mp
 
 class App:
@@ -307,21 +306,21 @@ class MyVideoCapture:
 
             results = self.detector.pose.process(self.detector.image)
             self.detector.process_landmarks(results, draw=draw_pose_landmarks, vis_threshold=vis_threshold)
-            self.detector.blur_person()
+            # self.detector.blur_person()
             if draw_all_landmarks:
                 self.detector.draw_all_landmarks(results)
 
-            self.detector2.set_images(self.detector.image)
-            results2 = self.detector2.pose.process(self.detector2.image)
-            self.detector2.process_landmarks(results2, draw=draw_all_landmarks, vis_threshold=vis_threshold)
-            self.detector2.blur_person()
+            # self.detector2.set_images(self.detector.image)
+            # results2 = self.detector2.pose.process(self.detector2.image)
+            # self.detector2.process_landmarks(results2, draw=draw_all_landmarks, vis_threshold=vis_threshold)
+            # self.detector2.blur_person()
 
 
 
-            if draw_all_landmarks:
-                self.detector2.draw_all_landmarks(results2)
+            # if draw_all_landmarks:
+            #     self.detector2.draw_all_landmarks(results2)
 
-            cv2.imshow("image", self.detector2.image)
+            # cv2.imshow("image", self.detector2.image)
 
             good_posture, ratio, angle = True, 0, 0
             try:
@@ -388,7 +387,7 @@ class MyVideoCapture:
                 self.prev_time = time.time()
 
             return (ret, cv2.cvtColor(self.detector.blank_image, cv2.COLOR_BGR2RGB), 
-            cv2.cvtColor(self.detector2.image, cv2.COLOR_BGR2RGB))
+            cv2.cvtColor(self.detector.image, cv2.COLOR_BGR2RGB))
 
     # Release the video source when the object is destroyed
     def __del__(self):
@@ -400,7 +399,7 @@ class MyVideoCapture:
 # Create a window and pass it to the Application object
 if __name__ == "__main__":
     settings = {
-        "video_source" : 1,
+        "video_source" : 0,
         # "video_source" : "video_samples/4.mp4",
         "show_video" : True,
         "auto_detect_orientation" : True,
