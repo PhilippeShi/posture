@@ -76,6 +76,9 @@ def overlay_image(og_img, ol_img, x, y):
     image[y:y+ol_img.shape[0], x:x+ol_img.shape[1]] = ol_img
     return image
 
+def crop_image(image, x1, x2, y1, y2):
+    return image[y1:y1+y2, x1:x1+x2]
+
 class sound_alert:
     def __init__(self):
         self.prev = "good"

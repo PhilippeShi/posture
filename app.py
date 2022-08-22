@@ -2,6 +2,7 @@ import tkinter as tk
 import cv2
 import PIL.Image, PIL.ImageTk
 import time
+import numpy as np
 
 from detect_posture.pose import detectPose
 from detect_posture.utils import image_resize
@@ -100,6 +101,18 @@ class App:
         btn_width = 10
         scale_length = 230
 
+        self.slide_crop_image=tk.Scale(self.window, from_=0, to=self.cap.width, orient=tk.HORIZONTAL, length=scale_length, command=self.crop_image_location, label="Crop image x-axis")
+        self.all_widgets["Crop Image Location"] = self.slide_crop_image
+        self.shown_widgets.append(self.slide_crop_image)
+
+        self.slide_crop_image_width=tk.Scale(self.window, from_=150, to=self.cap.width, orient=tk.HORIZONTAL, length=scale_length, command=self.crop_image_width, label="Crop image width")
+        self.all_widgets["Crop Image Width"] = self.slide_crop_image_width
+        self.shown_widgets.append(self.slide_crop_image_width)
+
+        self.btn_toggle_crop_image = tk.Button(self.window, text="Toggle Crop Image", width=btn_width, command=self.toggle_crop_image)
+        self.all_widgets["Toggle Crop Image"] = self.btn_toggle_crop_image
+        self.shown_widgets.append(self.btn_toggle_crop_image)
+      
         self.btn_toggle_auto_detect_orientation=tk.Button(self.window, text="Auto Detect", width=btn_width, command=self.toggle_auto_detect_orientation)
         self.all_widgets["Auto Detect"] = self.btn_toggle_auto_detect_orientation
         self.shown_widgets.append(self.btn_toggle_auto_detect_orientation)
@@ -195,7 +208,20 @@ class App:
             self.neck_widgets_shown = False
             for w in self.neck_widgets:
                 w.forget()
-                
+    
+    def crop_image_location(self, value):
+        self.kwargs_frame["crop"] = int(value)
+        self.crop_x = int(value)
+    
+    def crop_image_width(self, value):
+        self.kwargs_frame["crop_width"] = int(value)
+
+    def toggle_crop_image(self):
+        if self.kwargs_frame["crop"] is None:
+            self.kwargs_frame["crop"] = self.crop_x
+        else:
+            self.kwargs_frame["crop"] = None
+
     def add_bad_posture(self):
         self.kwargs_frame["add_bad_posture_flag"] = True
 
@@ -284,6 +310,8 @@ class MyVideoCapture:
         show_fps=True,
         mirror_mode=True,
         add_bad_posture_flag=False,
+        crop=None,
+        crop_width=150,
         ):
         if self.cap.isOpened():
             ret, image = self.cap.read()
@@ -299,6 +327,12 @@ class MyVideoCapture:
             if mirror_mode:
                 image = cv2.flip(image, 1) 
             
+            if crop is not None:
+                og_image = image.copy()
+                og_image = cv2.blur(og_image, (50,50))
+                og_blank_image = np.zeros(image.shape, dtype=np.uint8)
+                image = image[0:self.height, crop:crop+crop_width]
+
             self.detector.set_images(image, 
             resize_image_width_to=resize_image_width_to, 
             resize_image_height_to=resize_image_height_to)
@@ -359,11 +393,11 @@ class MyVideoCapture:
             elif not good_posture:
                 self.time_bad_posture += time.time() - self.prev_time
                 for img in self.detector.images():
-                    cv2.putText(img, "time bad posture: "+str(round(float(self.time_bad_posture),3)), (0,100), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
+                    cv2.putText(img, "time: "+str(round(float(self.time_bad_posture),2)), (0,100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1)
 
                 if self.time_bad_posture > time_bad_posture_alert:
                     for img in self.detector.images():
-                        cv2.putText(img, f"MORE THAN {int(self.time_bad_posture)}s!", (0,150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 3)
+                        cv2.putText(img, f"ALERT {int(self.time_bad_posture)}s!", (0,150), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
                     
                     send_msg = "ALERT"
                     
@@ -385,6 +419,13 @@ class MyVideoCapture:
                 self.prev_time = self.detector.show_fps(self.prev_time)
             else:
                 self.prev_time = time.time()
+
+            if crop is not None:
+
+                og_image[0:self.detector.image.shape[0], crop:crop+self.detector.image.shape[1]] = self.detector.image
+                og_blank_image[0:self.detector.blank_image.shape[0], crop:crop+self.detector.blank_image.shape[1]] = self.detector.blank_image
+                return (ret, cv2.cvtColor(og_blank_image, cv2.COLOR_BGR2RGB), 
+                        cv2.cvtColor(og_image, cv2.COLOR_BGR2RGB))
 
             return (ret, cv2.cvtColor(self.detector.blank_image, cv2.COLOR_BGR2RGB), 
             cv2.cvtColor(self.detector.image, cv2.COLOR_BGR2RGB))
@@ -417,7 +458,7 @@ if __name__ == "__main__":
         "show_fps" : False,
         "mirror_mode" : True,
         "alert_other_device": False,
-        "alert_sound": True,
+        "alert_sound": False,
         "ip_address": None,
         }
 
