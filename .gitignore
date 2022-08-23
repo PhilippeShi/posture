@@ -4,3 +4,7 @@ build
 settings_main.json
 settings.json
 todo.txt
+segment_person
+detect_posture/detect_people.py
+detect_posture/face.py
+detect_posture/mask.py
