@@ -98,14 +98,14 @@ class App:
         self.all_widgets["Canvas"] = self.canvas
         self.shown_widgets.append(self.canvas)
 
-        btn_width = 10
+        btn_width = 20
         scale_length = 230
 
-        self.slide_crop_image=tk.Scale(self.window, from_=0, to=self.cap.width, orient=tk.HORIZONTAL, length=scale_length, command=self.crop_image_location, label="Crop image x-axis")
-        self.all_widgets["Crop Image Location"] = self.slide_crop_image
+        self.slide_crop_image=tk.Scale(self.window, from_=0, to=self.cap.width, orient=tk.HORIZONTAL, length=scale_length, command=self.crop_image_location, label="Crop Image X-Axis")
+        self.all_widgets["Crop Image X-Axis"] = self.slide_crop_image
         self.shown_widgets.append(self.slide_crop_image)
 
-        self.slide_crop_image_width=tk.Scale(self.window, from_=150, to=self.cap.width, orient=tk.HORIZONTAL, length=scale_length, command=self.crop_image_width, label="Crop image width")
+        self.slide_crop_image_width=tk.Scale(self.window, from_=150, to=self.cap.width, orient=tk.HORIZONTAL, length=scale_length, command=self.crop_image_width, label="Crop Image Width")
         self.all_widgets["Crop Image Width"] = self.slide_crop_image_width
         self.shown_widgets.append(self.slide_crop_image_width)
 
