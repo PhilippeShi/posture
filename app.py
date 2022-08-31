@@ -5,11 +5,10 @@ import time
 import numpy as np
 
 from detect_posture.pose import detectPose
-from detect_posture.utils import image_resize
+from detect_posture.utils import image_resize_dim
 from detect_posture.utils import sound_alert
 from network import client
 import json
-import mediapipe as mp
 
 class App:
     def __init__(self, window, window_title,
@@ -86,7 +85,7 @@ class App:
         self.neck_widgets = []
         self.shown_widgets = []
 
-        width, height = image_resize((self.cap.height, self.cap.width, None), width=resize_image_width_to, height=resize_image_height_to)
+        width, height = image_resize_dim((self.cap.height, self.cap.width, None), width=resize_image_width_to, height=resize_image_height_to)
         self.cap.width, self.cap.height = width, height
 
         # Create a canvas that can fit the above video source size
@@ -322,39 +321,25 @@ class MyVideoCapture:
 
             # when false, avoid unnecessary computation
             self.detector.show_video_image = show_video 
-            
 
             if mirror_mode:
                 image = cv2.flip(image, 1) 
             
+            h, w = image_resize_dim(image.shape, width=resize_image_width_to, height=resize_image_height_to)
+            image = cv2.resize(image, (h, w))
+
             if crop is not None:
                 og_image = image.copy()
                 og_image = cv2.blur(og_image, (50,50))
                 og_blank_image = np.zeros(image.shape, dtype=np.uint8)
-                image = image[0:self.height, crop:crop+crop_width]
+                image = image[0:image.shape[0], crop:crop+crop_width]
 
-            self.detector.set_images(image, 
-            resize_image_width_to=resize_image_width_to, 
-            resize_image_height_to=resize_image_height_to)
-            
-
+            self.detector.set_images(image)
             results = self.detector.pose.process(self.detector.image)
             self.detector.process_landmarks(results, draw=draw_pose_landmarks, vis_threshold=vis_threshold)
-            # self.detector.blur_person()
+
             if draw_all_landmarks:
                 self.detector.draw_all_landmarks(results)
-
-            # self.detector2.set_images(self.detector.image)
-            # results2 = self.detector2.pose.process(self.detector2.image)
-            # self.detector2.process_landmarks(results2, draw=draw_all_landmarks, vis_threshold=vis_threshold)
-            # self.detector2.blur_person()
-
-
-
-            # if draw_all_landmarks:
-            #     self.detector2.draw_all_landmarks(results2)
-
-            # cv2.imshow("image", self.detector2.image)
 
             good_posture, ratio, angle = True, 0, 0
             try:
@@ -398,7 +383,7 @@ class MyVideoCapture:
                 if self.time_bad_posture > time_bad_posture_alert:
                     for img in self.detector.images():
                         cv2.putText(img, f"ALERT {int(self.time_bad_posture)}s!", (0,150), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
-                    
+
                     send_msg = "ALERT"
                     
                 else:
@@ -421,7 +406,6 @@ class MyVideoCapture:
                 self.prev_time = time.time()
 
             if crop is not None:
-
                 og_image[0:self.detector.image.shape[0], crop:crop+self.detector.image.shape[1]] = self.detector.image
                 og_blank_image[0:self.detector.blank_image.shape[0], crop:crop+self.detector.blank_image.shape[1]] = self.detector.blank_image
                 return (ret, cv2.cvtColor(og_blank_image, cv2.COLOR_BGR2RGB), 
@@ -440,11 +424,11 @@ class MyVideoCapture:
 # Create a window and pass it to the Application object
 if __name__ == "__main__":
     settings = {
-        "video_source" : 0,
-        # "video_source" : "video_samples/4.mp4",
+        # "video_source" : 0,
+        "video_source" : "video_samples/5.mp4",
         "show_video" : True,
         "auto_detect_orientation" : True,
-        "draw_all_landmarks" : True,
+        "draw_all_landmarks" : False,
         "draw_pose_landmarks" : True,
         "vis_threshold" : 0.7,
         "neck_ratio_threshold" : 0.65,
@@ -452,13 +436,13 @@ if __name__ == "__main__":
         "shoulder_height_variation_threshold" : 0.018,
         "shoulder_hip_ratio_threshold" : 0.45,
         "put_orientation_text" : True,
-        "resize_image_width_to" : 600,
+        "resize_image_width_to" : 300,
         "resize_image_height_to" : None,
         "time_bad_posture_alert" : 2,
-        "show_fps" : False,
+        "show_fps" : True,
         "mirror_mode" : True,
         "alert_other_device": False,
-        "alert_sound": False,
+        "alert_sound": True,
         "ip_address": None,
         }
 

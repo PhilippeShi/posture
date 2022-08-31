@@ -3,14 +3,14 @@ import winsound
 import os
 import time
 
-def image_resize(image_dim, width = None, height = None):
+def image_resize_dim(image_dim, width = None, height = None):
     """
     param:image_dim (height, width, _ )
     return (height, width)
     """
     dim = None
     h, w, _ = image_dim
-
+    
     if (type(width) is not int) and (type(height) is not int):
         return w,h
 

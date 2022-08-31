@@ -2,7 +2,7 @@ import time
 import cv2
 import mediapipe as mp
 import numpy as np
-from .utils import get_angle, image_resize, get_percent_difference, track_person, overlay_image
+from .utils import get_angle, get_percent_difference, track_person, overlay_image
 
 class detectPose():
     def __init__(self, min_detection_confidence=0.5, min_tracking_confidence=0.5, show_video_image=True):
@@ -25,19 +25,8 @@ class detectPose():
         
         self.bad_postures = list()
 
-    def set_images(self, image, resize_image_height_to=None, resize_image_width_to=None, resize_image_to=None):
-        if resize_image_to:
-            self.image = cv2.resize(image, resize_image_to)
-        elif resize_image_height_to and resize_image_width_to:
-            self.image = cv2.resize(image, (resize_image_width_to, resize_image_height_to))
-        elif resize_image_height_to:
-            dim = image_resize(image.shape, height=resize_image_height_to)
-            self.image = cv2.resize(image, dim) 
-        elif resize_image_width_to:
-            dim = image_resize(image.shape, width=resize_image_width_to)
-            self.image = cv2.resize(image, dim)
-        else:
-            self.image = image
+    def set_images(self, image):
+        self.image = image
         self.blank_image = np.zeros(self.image.shape, dtype=np.uint8)
 
 
@@ -429,7 +418,6 @@ def main():
             # If loading a video, use 'break' instead of 'continue'.
             break
 
-        # detector.set_images(image, resize_image_height_to=400, resize_image_width_to=200)
         detector.set_images(image)
         results = detector.pose.process(detector.image)
         
