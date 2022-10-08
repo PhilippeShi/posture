@@ -194,8 +194,11 @@ class App:
     def save_settings(self):
         d = self.kwargs_frame.copy()
         d.update(self.kwargs_other)
+        d.pop("crop_width") if "crop_width" in d else None
+        d.pop("crop") if "crop" in d else None
+        d.pop("add_bad_posture_flag") if "add_bad_posture_flag" in d else None
         with open('settings.json', 'w') as f:
-            json.dump({**self.kwargs_other, **self.kwargs_frame}, f)
+            json.dump(d, f)
         print("Settings saved")
 
     def neck_settings(self):
